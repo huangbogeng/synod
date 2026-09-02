@@ -101,7 +101,9 @@ The executable foundation currently includes the CLI runtime roles, embedded
 SQLite migrations, initial domain state machines, Human-only merge permission,
 bootstrap authentication, Topic APIs, the seven built-in Issue types, nested
 Issue creation, Comments, and durable mention snapshots. Mention target
-resolution, model Runs, and Proposal use cases are not implemented yet.
+resolution, model Runs, and Proposal use cases are not implemented yet. Provider,
+Model, AI Member, Topic Membership, and static Team configuration APIs are
+available as the routing foundation.
 
 ## Run the foundation
 

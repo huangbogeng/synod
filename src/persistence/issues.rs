@@ -345,7 +345,7 @@ async fn require_contribution(
     Ok(())
 }
 
-async fn insert_activity_event(
+pub(super) async fn insert_activity_event(
     transaction: &mut Transaction<'_, Sqlite>,
     topic_id: TopicId,
     item_id: Option<TopicItemId>,

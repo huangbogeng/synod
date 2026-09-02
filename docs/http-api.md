@@ -161,13 +161,21 @@ PATCH  /models/{model_id}
 GET    /ai-members
 POST   /ai-members
 PATCH  /ai-members/{member_id}
-GET    /teams
-POST   /teams
-PATCH  /teams/{team_id}
+GET    /topics/{topic_id}/teams
+POST   /topics/{topic_id}/teams
+PUT    /teams/{team_id}/members/{principal_id}
 ```
 
-These are administrative resources. API responses expose `credential_ref`
-presence but never secret values.
+Provider, Model, and AI Member records are server administrative resources. API
+responses expose credential presence but never references or secret values.
+
+The current implementation supports listing and creating Providers, Models, and
+AI Members. Only the bootstrap Human may use these server-wide endpoints.
+Credential references must use `env://` or `secret://`; responses expose only
+`credential_configured`.
+
+Topic Human writers may list or add Topic Members, create/list Teams, and add a
+Topic Member to a Team. Team nesting and Caller/System membership are rejected.
 
 ## Errors
 

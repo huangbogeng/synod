@@ -41,6 +41,9 @@ be represented safely by an existing one.
 
 Credentials are referenced from a server-side secret source and are never
 returned through the API, inserted into prompts, or stored in WorkspaceSnapshots.
+The first implementation accepts only `env://` and `secret://` credential
+references and returns a boolean `credential_configured` field instead of the
+reference value.
 
 ## Model
 

@@ -6,6 +6,7 @@ use sqlx::{
 };
 
 mod issues;
+mod members;
 mod store;
 
 pub use issues::StoredCreation;
@@ -67,15 +68,20 @@ mod tests {
 
         for expected in [
             "activity_events",
+            "ai_profiles",
             "comments",
             "dispatch_mentions",
             "dispatches",
             "issue_types",
             "issues",
             "jobs",
+            "models",
             "principal_tokens",
             "principals",
             "proposals",
+            "providers",
+            "team_members",
+            "teams",
             "topic_items",
             "topics",
         ] {

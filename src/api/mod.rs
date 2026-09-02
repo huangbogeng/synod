@@ -10,9 +10,11 @@ use tower_http::trace::TraceLayer;
 
 use crate::persistence::Database;
 
+mod admin;
 mod auth;
 mod error;
 mod issues;
+mod members;
 mod topics;
 
 use error::ApiError;
@@ -29,6 +31,34 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/topics", get(topics::list).post(topics::create))
         .route("/api/v1/topics/{topic_id}", get(topics::get))
         .route("/api/v1/issue-types", get(issues::list_types))
+        .route(
+            "/api/v1/providers",
+            get(admin::list_providers).post(admin::create_provider),
+        )
+        .route(
+            "/api/v1/models",
+            get(admin::list_models).post(admin::create_model),
+        )
+        .route(
+            "/api/v1/ai-members",
+            get(admin::list_ai_members).post(admin::create_ai_member),
+        )
+        .route(
+            "/api/v1/topics/{topic_id}/members",
+            get(members::list_topic_members),
+        )
+        .route(
+            "/api/v1/topics/{topic_id}/members/{principal_id}",
+            axum::routing::put(members::put_topic_member),
+        )
+        .route(
+            "/api/v1/topics/{topic_id}/teams",
+            get(members::list_teams).post(members::create_team),
+        )
+        .route(
+            "/api/v1/teams/{team_id}/members/{principal_id}",
+            axum::routing::put(members::put_team_member),
+        )
         .route(
             "/api/v1/topics/{topic_id}/issues",
             get(issues::list).post(issues::create),
@@ -309,6 +339,144 @@ mod tests {
             json_body(comments).await["data"].as_array().unwrap().len(),
             1
         );
+    }
+
+    #[tokio::test]
+    async fn provider_model_ai_member_and_team_flow_is_consistent() {
+        let database = Database::connect(Path::new(":memory:")).await.unwrap();
+        let bootstrap = database
+            .bootstrap_human("alice", "Alice", "test")
+            .await
+            .unwrap();
+        let topic = TopicService::new(database.clone())
+            .create(
+                &bootstrap.principal,
+                "factor-lab".to_owned(),
+                "Factor Lab".to_owned(),
+                String::new(),
+            )
+            .await
+            .unwrap();
+        let bearer = format!("Bearer {}", bootstrap.token);
+        let app = router(AppState { database });
+
+        let raw_secret = send(
+            &app,
+            "POST",
+            "/api/v1/providers",
+            &bearer,
+            Some(serde_json::json!({
+                "name": "Unsafe",
+                "adapter": "openai_compatible",
+                "base_url": "https://example.com",
+                "credential_ref": "raw-secret"
+            })),
+        )
+        .await;
+        assert_eq!(raw_secret.status(), StatusCode::BAD_REQUEST);
+
+        let provider = send(
+            &app,
+            "POST",
+            "/api/v1/providers",
+            &bearer,
+            Some(serde_json::json!({
+                "name": "OpenAI",
+                "adapter": "openai_responses",
+                "base_url": "https://api.openai.com",
+                "credential_ref": "env://OPENAI_API_KEY"
+            })),
+        )
+        .await;
+        assert_eq!(provider.status(), StatusCode::CREATED);
+        let provider = json_body(provider).await;
+        assert_eq!(provider["data"]["credential_configured"], true);
+        assert!(provider["data"].get("credential_ref").is_none());
+        let provider_id = provider["data"]["id"].as_str().unwrap();
+
+        let model = send(
+            &app,
+            "POST",
+            "/api/v1/models",
+            &bearer,
+            Some(serde_json::json!({
+                "provider_id": provider_id,
+                "model_name": "reasoning-model",
+                "display_name": "Reasoning Model",
+                "capabilities": {"streaming": true, "tool_calling": true}
+            })),
+        )
+        .await;
+        assert_eq!(model.status(), StatusCode::CREATED);
+        let model = json_body(model).await;
+        let model_id = model["data"]["id"].as_str().unwrap();
+
+        let ai_member = send(
+            &app,
+            "POST",
+            "/api/v1/ai-members",
+            &bearer,
+            Some(serde_json::json!({
+                "handle": "architect",
+                "display_name": "Architect",
+                "identity_prompt": "Review system boundaries.",
+                "default_model_id": model_id
+            })),
+        )
+        .await;
+        assert_eq!(ai_member.status(), StatusCode::CREATED);
+        let ai_member = json_body(ai_member).await;
+        let ai_id = ai_member["data"]["id"].as_str().unwrap();
+        assert_eq!(ai_member["data"]["kind"], "ai");
+
+        let membership = send(
+            &app,
+            "PUT",
+            &format!("/api/v1/topics/{}/members/{ai_id}", topic.id),
+            &bearer,
+            Some(serde_json::json!({"role": "contribute"})),
+        )
+        .await;
+        assert_eq!(membership.status(), StatusCode::OK);
+        assert_eq!(json_body(membership).await["data"]["role"], "contribute");
+
+        let team = send(
+            &app,
+            "POST",
+            &format!("/api/v1/topics/{}/teams", topic.id),
+            &bearer,
+            Some(serde_json::json!({
+                "handle": "design-team",
+                "display_name": "Design Team"
+            })),
+        )
+        .await;
+        assert_eq!(team.status(), StatusCode::CREATED);
+        let team = json_body(team).await;
+        let team_id = team["data"]["id"].as_str().unwrap();
+
+        let team = send(
+            &app,
+            "PUT",
+            &format!("/api/v1/teams/{team_id}/members/{ai_id}"),
+            &bearer,
+            None,
+        )
+        .await;
+        assert_eq!(team.status(), StatusCode::OK);
+        let team = json_body(team).await;
+        assert_eq!(team["data"]["members"].as_array().unwrap().len(), 1);
+
+        let teams = send(
+            &app,
+            "GET",
+            &format!("/api/v1/topics/{}/teams", topic.id),
+            &bearer,
+            None,
+        )
+        .await;
+        assert_eq!(teams.status(), StatusCode::OK);
+        assert_eq!(json_body(teams).await["data"].as_array().unwrap().len(), 1);
     }
 
     async fn send(

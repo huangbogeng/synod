@@ -268,7 +268,7 @@ fn hash_token(token: &str) -> Vec<u8> {
     Sha256::digest(token.as_bytes()).to_vec()
 }
 
-fn map_constraint(error: sqlx::Error) -> StoreError {
+pub(super) fn map_constraint(error: sqlx::Error) -> StoreError {
     if matches!(&error, sqlx::Error::Database(database) if database.is_unique_violation()) {
         StoreError::Conflict
     } else {

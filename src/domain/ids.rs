@@ -60,6 +60,9 @@ entity_id!(TopicId);
 entity_id!(TopicItemId);
 entity_id!(CommentId);
 entity_id!(DispatchId);
+entity_id!(ProviderId);
+entity_id!(ModelId);
+entity_id!(TeamId);
 
 #[cfg(test)]
 mod tests {
