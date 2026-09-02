@@ -107,14 +107,26 @@ implemented yet.
 Rust 1.94 or newer is required.
 
 ```bash
+cargo run -- bootstrap --handle admin --display-name "Administrator"
 cargo run -- dev
 ```
+
+Bootstrap prints the only copy of the first Human Member's bearer token. Store
+it securely; subsequent bootstrap attempts are rejected and Synod stores only
+the token digest.
 
 The default server listens on `127.0.0.1:3030` and creates `synod.db` in the
 working directory. Check it with:
 
 ```bash
 curl http://127.0.0.1:3030/api/v1/health
+```
+
+Authenticated endpoints use that token:
+
+```bash
+curl -H "Authorization: Bearer $SYNOD_TOKEN" \
+  http://127.0.0.1:3030/api/v1/me
 ```
 
 Run the worker storage check without starting its loop:

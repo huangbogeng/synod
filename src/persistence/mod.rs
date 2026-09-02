@@ -5,6 +5,10 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
 };
 
+mod store;
+
+pub use store::{BootstrapOutput, StoreError};
+
 #[derive(Debug, Clone)]
 pub struct Database {
     pool: SqlitePool,
@@ -64,6 +68,7 @@ mod tests {
             "comments",
             "issues",
             "jobs",
+            "principal_tokens",
             "principals",
             "proposals",
             "topic_items",
@@ -74,5 +79,35 @@ mod tests {
                 "missing {expected}"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn bootstrap_token_is_hashed_and_bootstrap_is_single_use() {
+        let database = Database::connect(Path::new(":memory:")).await.unwrap();
+        let bootstrap = database
+            .bootstrap_human("alice", "Alice", "test")
+            .await
+            .unwrap();
+
+        let authenticated = database
+            .authenticate(&bootstrap.token)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(authenticated.id, bootstrap.principal.id);
+
+        let plaintext_matches: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM principal_tokens WHERE CAST(token_hash AS TEXT) = ?",
+        )
+        .bind(&bootstrap.token)
+        .fetch_one(database.pool())
+        .await
+        .unwrap();
+        assert_eq!(plaintext_matches, 0);
+
+        let Err(repeated) = database.bootstrap_human("bob", "Bob", "test").await else {
+            panic!("second bootstrap unexpectedly succeeded");
+        };
+        assert!(matches!(repeated, StoreError::AlreadyBootstrapped));
     }
 }

@@ -14,6 +14,11 @@ same API; neither receives a privileged merge path.
 - timestamps use RFC 3339 UTC;
 - long model output streams through Server-Sent Events (SSE).
 
+Local installation begins with `synod bootstrap`, which creates the first Human
+Member and prints a bearer token once. The database stores only its SHA-256
+digest. Bootstrap is rejected after the first successful call. AI Members never
+receive bearer credentials.
+
 Public references such as `TOP-1#12` are accepted at CLI and UI boundaries. API
 payloads return both opaque IDs and display references.
 
@@ -30,6 +35,7 @@ PUT    /topics/{topic_id}/members/{principal_id}
 DELETE /topics/{topic_id}/members/{principal_id}
 
 GET    /topics/{topic_id}/timeline
+GET    /me
 ```
 
 Membership mutation is Human-admin only. Removing membership does not erase

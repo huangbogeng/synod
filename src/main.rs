@@ -3,8 +3,9 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use synod::{
     api::{self, AppState},
-    config::RuntimeArgs,
+    config::{ServerArgs, StorageArgs},
     persistence::Database,
+    services::IdentityService,
     workers,
 };
 use tracing_subscriber::EnvFilter;
@@ -19,17 +20,28 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Run the HTTP API and Web server.
-    Server(RuntimeArgs),
+    Server(ServerArgs),
     /// Run the durable job worker.
     Worker {
         #[command(flatten)]
-        runtime: RuntimeArgs,
+        storage: StorageArgs,
         /// Check storage and exit without entering the worker loop.
         #[arg(long)]
         once: bool,
     },
     /// Run the local single-process development profile.
-    Dev(RuntimeArgs),
+    Dev(ServerArgs),
+    /// Create the first local Human Member and bearer token.
+    Bootstrap {
+        #[command(flatten)]
+        storage: StorageArgs,
+        /// Lowercase handle for the first Human Member.
+        #[arg(long, default_value = "admin")]
+        handle: String,
+        /// Display name for the first Human Member.
+        #[arg(long, default_value = "Administrator")]
+        display_name: String,
+    },
 }
 
 #[tokio::main]
@@ -48,8 +60,8 @@ async fn main() -> ExitCode {
 async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Command::Server(runtime) => serve(runtime).await,
-        Command::Worker { runtime, once } => {
-            let database = Database::connect(&runtime.database).await?;
+        Command::Worker { storage, once } => {
+            let database = Database::connect(&storage.database).await?;
             if once {
                 workers::check_once(&database).await?;
                 tracing::info!("worker storage check completed");
@@ -60,7 +72,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Command::Dev(runtime) => {
-            let worker_database = Database::connect(&runtime.database).await?;
+            let worker_database = Database::connect(&runtime.storage.database).await?;
             let worker = tokio::spawn(workers::run(worker_database));
             tracing::info!("development profile started server and worker");
 
@@ -69,11 +81,28 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let _ = worker.await;
             result
         }
+        Command::Bootstrap {
+            storage,
+            handle,
+            display_name,
+        } => {
+            let database = Database::connect(&storage.database).await?;
+            let bootstrap = IdentityService::new(database)
+                .bootstrap_human(&handle, &display_name)
+                .await?;
+            println!(
+                "Human: {} ({})",
+                bootstrap.principal.handle, bootstrap.principal.id
+            );
+            println!("Token: {}", bootstrap.token);
+            println!("Store this token securely; Synod cannot display it again.");
+            Ok(())
+        }
     }
 }
 
-async fn serve(runtime: RuntimeArgs) -> Result<(), Box<dyn std::error::Error>> {
-    let database = Database::connect(&runtime.database).await?;
+async fn serve(runtime: ServerArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let database = Database::connect(&runtime.storage.database).await?;
     let listener = tokio::net::TcpListener::bind(runtime.bind).await?;
     tracing::info!(address = %runtime.bind, "server listening");
 
