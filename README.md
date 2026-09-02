@@ -99,8 +99,9 @@ service.
 
 The executable foundation currently includes the CLI runtime roles, embedded
 SQLite migrations, initial domain state machines, Human-only merge permission,
-and an HTTP health endpoint. Issue and Proposal use-case endpoints are not
-implemented yet.
+bootstrap authentication, Topic APIs, the seven built-in Issue types, nested
+Issue creation, Comments, and durable mention snapshots. Mention target
+resolution, model Runs, and Proposal use cases are not implemented yet.
 
 ## Run the foundation
 

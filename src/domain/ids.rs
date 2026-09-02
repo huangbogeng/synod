@@ -58,6 +58,8 @@ macro_rules! entity_id {
 entity_id!(PrincipalId);
 entity_id!(TopicId);
 entity_id!(TopicItemId);
+entity_id!(CommentId);
+entity_id!(DispatchId);
 
 #[cfg(test)]
 mod tests {

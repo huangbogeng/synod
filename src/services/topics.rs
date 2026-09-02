@@ -1,7 +1,9 @@
 use crate::{
-    domain::{CreateTopic, Principal, PrincipalKind, Topic, TopicId, ValidationError},
-    persistence::{Database, StoreError},
+    domain::{CreateTopic, Principal, PrincipalKind, Topic, TopicId},
+    persistence::Database,
 };
+
+use super::ServiceError;
 
 #[derive(Debug, Clone)]
 pub struct TopicService {
@@ -43,32 +45,5 @@ impl TopicService {
             .get_topic_for(actor.id, topic_id)
             .await
             .map_err(Into::into)
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ServiceError {
-    #[error(transparent)]
-    Validation(#[from] ValidationError),
-    #[error("operation is not permitted")]
-    Forbidden,
-    #[error("resource already exists")]
-    Conflict,
-    #[error("resource was not found")]
-    NotFound,
-    #[error("storage operation failed")]
-    Storage(#[source] sqlx::Error),
-    #[error("stored data is invalid")]
-    CorruptData,
-}
-
-impl From<StoreError> for ServiceError {
-    fn from(error: StoreError) -> Self {
-        match error {
-            StoreError::Conflict => Self::Conflict,
-            StoreError::NotFound => Self::NotFound,
-            StoreError::Sqlx(error) => Self::Storage(error),
-            StoreError::CorruptData(_) | StoreError::AlreadyBootstrapped => Self::CorruptData,
-        }
     }
 }

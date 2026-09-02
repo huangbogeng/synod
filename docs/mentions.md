@@ -46,6 +46,11 @@ Mentions are parsed from:
 The server persists the source object before enqueueing Runs. A trigger therefore
 always points to durable content that can be reconstructed and audited.
 
+The current implementation persists an ordered, deduplicated mention snapshot
+and pending Dispatch atomically with each new Issue or Comment. Member and Team
+resolution, notifications, and Run creation are the next execution layer; a
+pending Dispatch does not yet imply that a model was invoked.
+
 ## Trigger behavior
 
 One source event creates one dispatch record. The dispatch record contains:

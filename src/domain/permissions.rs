@@ -17,6 +17,31 @@ pub enum MembershipRole {
     Write,
 }
 
+impl MembershipRole {
+    #[must_use]
+    pub const fn can_contribute(self) -> bool {
+        matches!(self, Self::Contribute | Self::Write)
+    }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Read => "read",
+            Self::Contribute => "contribute",
+            Self::Write => "write",
+        }
+    }
+
+    pub fn from_stored(value: &str) -> Option<Self> {
+        match value {
+            "read" => Some(Self::Read),
+            "contribute" => Some(Self::Contribute),
+            "write" => Some(Self::Write),
+            _ => None,
+        }
+    }
+}
+
 #[must_use]
 pub const fn can_merge_proposal(kind: PrincipalKind, role: MembershipRole) -> bool {
     matches!(kind, PrincipalKind::Human) && matches!(role, MembershipRole::Write)

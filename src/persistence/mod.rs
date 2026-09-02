@@ -5,8 +5,10 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
 };
 
+mod issues;
 mod store;
 
+pub use issues::StoredCreation;
 pub use store::{BootstrapOutput, StoreError};
 
 #[derive(Debug, Clone)]
@@ -66,6 +68,9 @@ mod tests {
         for expected in [
             "activity_events",
             "comments",
+            "dispatch_mentions",
+            "dispatches",
+            "issue_types",
             "issues",
             "jobs",
             "principal_tokens",

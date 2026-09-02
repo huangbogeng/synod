@@ -23,6 +23,10 @@ pub enum StoreError {
     Conflict,
     #[error("resource was not found")]
     NotFound,
+    #[error("operation is not permitted")]
+    PermissionDenied,
+    #[error("invalid reference: {0}")]
+    InvalidReference(&'static str),
     #[error("stored data is invalid: {0}")]
     CorruptData(&'static str),
     #[error(transparent)]
@@ -269,15 +273,5 @@ fn map_constraint(error: sqlx::Error) -> StoreError {
         StoreError::Conflict
     } else {
         StoreError::Sqlx(error)
-    }
-}
-
-impl MembershipRole {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Read => "read",
-            Self::Contribute => "contribute",
-            Self::Write => "write",
-        }
     }
 }

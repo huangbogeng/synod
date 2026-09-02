@@ -44,6 +44,7 @@ historical authorship.
 ## Issues and Comments
 
 ```text
+GET    /issue-types
 POST   /topics/{topic_id}/issues
 GET    /topics/{topic_id}/issues
 GET    /issues/{issue_id}
@@ -60,6 +61,10 @@ DELETE /comments/{comment_id}
 Creating or editing mention-bearing content commits the content first and then
 enqueues one Dispatch from that exact revision. The response returns the saved
 resource plus `dispatch_id` when mentions were accepted.
+
+The first implementation resolves `GET /issue-types`, Issue creation/list/read,
+and Issue Comment creation/list. Mutation, close/reopen, Proposal Comments, and
+Comment edit/tombstone endpoints remain part of the planned surface.
 
 ## Proposals and Reviews
 

@@ -102,6 +102,12 @@ pub enum ValidationError {
     InvalidTitle,
     #[error("topic description must not exceed 20000 characters")]
     DescriptionTooLong,
+    #[error("issue type is invalid")]
+    InvalidIssueType,
+    #[error("body must not exceed 100000 characters")]
+    BodyTooLong,
+    #[error("body must not be empty")]
+    EmptyBody,
 }
 
 #[cfg(test)]

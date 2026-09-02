@@ -113,10 +113,13 @@ Changing an Issue's type is allowed while preserving its number, Comments,
 Runs, links, and history. The change adds a timeline event. Existing content is
 never discarded merely because it does not match the new template.
 
-## Open design questions
+## First-version decision
 
-- Are custom types defined globally or per Topic in the first release?
-- May a type require fields, or should templates remain guidance only?
-- Which default types deserve specialized UI instead of a Markdown template?
-- Should a type template contain suggested `@mentions`, or should the editor add
-  them only after an explicit user selection?
+The first version exposes only the seven built-in types above. They are global,
+seeded by a database migration, and use Markdown guidance rather than required
+structured fields. None receives a specialized lifecycle or UI, and templates
+do not trigger suggested mentions automatically.
+
+Topic-scoped custom types remain a later extension. Their configuration shape is
+documented above so the core Issue record does not need redesign when they are
+added.

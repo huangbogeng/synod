@@ -1,5 +1,9 @@
+mod error;
 mod identity;
+mod issues;
 mod topics;
 
+pub use error::ServiceError;
 pub use identity::IdentityService;
-pub use topics::{ServiceError, TopicService};
+pub use issues::IssueService;
+pub use topics::TopicService;

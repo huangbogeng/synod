@@ -12,6 +12,7 @@ use crate::persistence::Database;
 
 mod auth;
 mod error;
+mod issues;
 mod topics;
 
 use error::ApiError;
@@ -27,6 +28,16 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/me", get(auth::me))
         .route("/api/v1/topics", get(topics::list).post(topics::create))
         .route("/api/v1/topics/{topic_id}", get(topics::get))
+        .route("/api/v1/issue-types", get(issues::list_types))
+        .route(
+            "/api/v1/topics/{topic_id}/issues",
+            get(issues::list).post(issues::create),
+        )
+        .route("/api/v1/issues/{issue_id}", get(issues::get))
+        .route(
+            "/api/v1/issues/{issue_id}/comments",
+            get(issues::list_comments).post(issues::create_comment),
+        )
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }
@@ -70,6 +81,7 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
+    use crate::services::TopicService;
 
     #[tokio::test]
     async fn health_reports_a_ready_database() {
@@ -193,6 +205,133 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         assert_eq!(json_body(response).await["error"]["code"], "unauthorized");
+    }
+
+    #[tokio::test]
+    async fn issue_comment_and_mention_flow_is_persisted() {
+        let database = Database::connect(Path::new(":memory:")).await.unwrap();
+        let bootstrap = database
+            .bootstrap_human("alice", "Alice", "test")
+            .await
+            .unwrap();
+        let topic = TopicService::new(database.clone())
+            .create(
+                &bootstrap.principal,
+                "factor-lab".to_owned(),
+                "Factor Lab".to_owned(),
+                String::new(),
+            )
+            .await
+            .unwrap();
+        let bearer = format!("Bearer {}", bootstrap.token);
+        let app = router(AppState {
+            database: database.clone(),
+        });
+
+        let types = send(&app, "GET", "/api/v1/issue-types", &bearer, None).await;
+        assert_eq!(types.status(), StatusCode::OK);
+        assert_eq!(json_body(types).await["data"].as_array().unwrap().len(), 7);
+
+        let issue = send(
+            &app,
+            "POST",
+            &format!("/api/v1/topics/{}/issues", topic.id),
+            &bearer,
+            Some(serde_json::json!({
+                "issue_type": "research",
+                "title": "Test revision signals",
+                "body": "@Architect inspect this. `@ignored` Then @architect again."
+            })),
+        )
+        .await;
+        assert_eq!(issue.status(), StatusCode::CREATED);
+        let issue = json_body(issue).await;
+        let issue_id = issue["data"]["id"].as_str().unwrap();
+        assert_eq!(issue["data"]["number"], 1);
+        assert_eq!(issue["dispatch"]["status"], "pending");
+
+        let handles: Vec<String> = sqlx::query_scalar(
+            "SELECT mention.handle FROM dispatch_mentions AS mention
+             JOIN dispatches AS dispatch ON dispatch.id = mention.dispatch_id
+             WHERE dispatch.source_id = ? ORDER BY mention.mention_order",
+        )
+        .bind(issue_id)
+        .fetch_all(database.pool())
+        .await
+        .unwrap();
+        assert_eq!(handles, ["architect"]);
+
+        let child = send(
+            &app,
+            "POST",
+            &format!("/api/v1/topics/{}/issues", topic.id),
+            &bearer,
+            Some(serde_json::json!({
+                "issue_type": "experiment",
+                "title": "Measure the signal",
+                "body": "No mention",
+                "parent_issue_id": issue_id
+            })),
+        )
+        .await;
+        assert_eq!(child.status(), StatusCode::CREATED);
+        let child = json_body(child).await;
+        assert_eq!(child["data"]["number"], 2);
+        assert_eq!(child["data"]["parent_issue_id"], issue_id);
+        assert!(child["dispatch"].is_null());
+
+        let comment = send(
+            &app,
+            "POST",
+            &format!("/api/v1/issues/{issue_id}/comments"),
+            &bearer,
+            Some(serde_json::json!({
+                "kind": "direction",
+                "body": "@security-team focus on publication timing."
+            })),
+        )
+        .await;
+        assert_eq!(comment.status(), StatusCode::CREATED);
+        let comment = json_body(comment).await;
+        assert_eq!(comment["data"]["kind"], "direction");
+        assert_eq!(comment["dispatch"]["status"], "pending");
+
+        let comments = send(
+            &app,
+            "GET",
+            &format!("/api/v1/issues/{issue_id}/comments"),
+            &bearer,
+            None,
+        )
+        .await;
+        assert_eq!(comments.status(), StatusCode::OK);
+        assert_eq!(
+            json_body(comments).await["data"].as_array().unwrap().len(),
+            1
+        );
+    }
+
+    async fn send(
+        app: &Router,
+        method: &str,
+        uri: &str,
+        bearer: &str,
+        body: Option<serde_json::Value>,
+    ) -> Response {
+        let mut request = Request::builder()
+            .method(method)
+            .uri(uri)
+            .header(header::AUTHORIZATION, bearer);
+        let body = if let Some(body) = body {
+            request = request.header(header::CONTENT_TYPE, "application/json");
+            Body::from(body.to_string())
+        } else {
+            Body::empty()
+        };
+        app.clone()
+            .oneshot(request.body(body).unwrap())
+            .await
+            .unwrap()
     }
 
     async fn json_body(response: Response) -> serde_json::Value {

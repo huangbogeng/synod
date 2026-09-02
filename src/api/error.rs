@@ -72,6 +72,7 @@ impl From<ServiceError> for ApiError {
                 tracing::debug!(%error, "request validation failed");
                 Self::BadRequest("request content is invalid")
             }
+            ServiceError::InvalidReference(message) => Self::BadRequest(message),
             ServiceError::Forbidden => Self::Forbidden,
             ServiceError::Conflict => Self::Conflict,
             ServiceError::NotFound => Self::NotFound,
