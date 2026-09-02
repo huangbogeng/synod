@@ -1,0 +1,5 @@
+/target/
+/synod.db
+/synod.db-shm
+/synod.db-wal
+/.env

@@ -1,0 +1,30 @@
+[package]
+name = "synod"
+version = "0.1.0"
+edition = "2024"
+description = "A lightweight, provider-neutral deliberation hub for humans and AI members"
+repository = "https://github.com/huangbogeng/synod"
+rust-version = "1.94"
+publish = false
+
+[dependencies]
+axum = "0.8"
+clap = { version = "4", features = ["derive", "env"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.9", default-features = false, features = ["macros", "migrate", "runtime-tokio", "sqlite", "time", "uuid"] }
+thiserror = "2"
+time = { version = "0.3", features = ["serde"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "time"] }
+tower-http = { version = "0.6", features = ["trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+uuid = { version = "1", features = ["serde", "v7"] }
+
+[dev-dependencies]
+http-body-util = "0.1"
+tower = { version = "0.5", features = ["util"] }
+
+[profile.release]
+lto = "thin"
+strip = "symbols"
