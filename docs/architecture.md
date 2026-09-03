@@ -81,13 +81,11 @@ The first version permits one active worker. A future PostgreSQL backend may
 permit several workers using row locking. This is a small internal queue, not a
 general workflow engine.
 
-The current worker resolves at most one pending Dispatch per pass. Dispatch
-expansion and creation of notifications, Conversations, queued Runs, and
-`run.execute` jobs are atomic. Job leasing and Provider execution are the next
-worker layer; `synod worker --once` currently performs one Dispatch-resolution
-pass and exits. A provider-neutral execution service and lease/settlement
-transactions exist behind an injected `ModelGateway`; production native adapters
-are not connected yet.
+The current worker resolves at most one pending Dispatch and executes at most
+one queued Run per pass. Dispatch expansion and creation of notifications,
+Conversations, queued Runs, and `run.execute` jobs are atomic. Run execution
+uses a leased job, a frozen context snapshot, and transactional settlement.
+`synod worker --once` performs one bounded pass and exits.
 
 Redis, RabbitMQ, Celery, and Kubernetes are not required. A future deployment
 may add a queue adapter only after database polling becomes a measured problem.
@@ -95,19 +93,19 @@ may add a queue adapter only after database polling becomes a measured problem.
 ## Model adapters
 
 Provider adapters are implemented with Reqwest directly against documented HTTP
-protocols:
+protocols. The first executable slice contains one narrow OpenAI-compatible
+Chat Completions adapter restricted to official DeepSeek and MiniMax hosts:
 
 ```text
-openai_responses
-openai_compatible
-anthropic_messages
-google_gemini
+DeepSeek  -> https://api.deepseek.com[/v1]/chat/completions
+MiniMax   -> https://api.minimax.io/v1/chat/completions
+          -> https://api.minimaxi.com/v1/chat/completions
 ```
 
-They share Synod's normalized stream and tool-call contract. Synod does not use
-LiteLLM in its core because provider routing, fallback, agent abstraction, and
-its larger dependency surface overlap with responsibilities Synod deliberately
-keeps explicit.
+The adapter currently makes non-streaming text requests; streaming and tool
+calls remain later workflow slices. Synod does not use LiteLLM in its core
+because provider routing, fallback, agent abstraction, and its larger dependency
+surface overlap with responsibilities Synod deliberately keeps explicit.
 
 Provider SDK crates may be used inside an adapter only when they materially
 improve a native protocol implementation. No provider object may leak into

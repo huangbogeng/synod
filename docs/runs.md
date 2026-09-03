@@ -175,6 +175,7 @@ and atomically settles the Attempt, Run, Job, Conversation, activity event, and
 final AI Comment. Provider failures produce a terminal failed Run and diagnostic
 Conversation item without publishing a fake Comment.
 
-Native HTTP adapters are not yet connected to the production worker, so normal
-runtime Runs remain queued. The execution path is currently exercised through
-an injected gateway in tests.
+The production worker connects that execution path to the DeepSeek and MiniMax
+HTTP adapter. Each pass resolves at most one Dispatch and executes at most one
+queued Run. Other adapters fail explicitly; a failed provider call completes the
+Run as failed and does not publish an AI Comment.

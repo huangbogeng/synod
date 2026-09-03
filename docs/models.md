@@ -15,160 +15,130 @@ Provider -> Model -> AI Member -> Conversation
 - Conversation belongs to an AI Member and an Issue or Proposal, but remains
   provider-neutral.
 
-## Provider
-
-```yaml
-id: provider-anthropic
-name: Anthropic
-adapter: anthropic_messages
-base_url: https://api.anthropic.com
-credential_ref: secret://anthropic/default
-enabled: true
-```
-
-Initial adapter families:
-
-```text
-openai_responses
-openai_compatible
-anthropic_messages
-google_gemini
-```
-
-Local and gateway services use the nearest compatible adapter plus a custom base
-URL. Additional native adapters are added only when protocol differences cannot
-be represented safely by an existing one.
-
-Credentials are referenced from a server-side secret source and are never
-returned through the API, inserted into prompts, or stored in WorkspaceSnapshots.
-The first implementation accepts only `env://` and `secret://` credential
-references and returns a boolean `credential_configured` field instead of the
-reference value.
-
-## Model
-
-```yaml
-id: claude-sonnet
-provider_id: provider-anthropic
-model_name: configured-model-name
-display_name: Claude Sonnet
-capabilities:
-  streaming: true
-  tool_calling: true
-  structured_output: false
-  vision: true
-  provider_conversation: false
-limits:
-  context_tokens: configured-value
-  max_output_tokens: configured-value
-defaults:
-  temperature: null
-  max_output_tokens: 8000
-enabled: true
-```
-
-Capability declarations are configuration validated by adapter behavior. Synod
-does not assume all vendors interpret similarly named parameters in the same
-way.
-
-If a Run requires an unsupported capability, admission fails before spending
-tokens. The system does not silently remove tools, change the output contract, or
-substitute another model.
-
-## AI Member
-
-```yaml
-id: member-architect
-kind: ai
-handle: architect
-display_name: Architect
-identity_prompt: |
-  Review boundaries, scalability, migration risk, and unnecessary complexity.
-identity_prompt_version: 3
-default_model_id: claude-sonnet
-enabled: true
-```
-
 Identity is only the Prompt. It does not select special application code,
-permissions, or tools. All AI Members run through the same engine.
+permissions, or tools. All AI Members run through the same engine. Changing the
+default Model affects later Runs only; each Run freezes the selected Provider,
+Model, parameters, identity Prompt version, and context.
 
-Changing the default Model affects later Runs only. Every Run records the exact
-Prompt version, Provider, Model, parameters, and capabilities used.
+## Implemented providers
 
-## Provider adapter contract
+The first HTTP implementation intentionally supports only DeepSeek and MiniMax.
+Both expose an OpenAI-compatible `POST /chat/completions` API with Bearer-token
+authentication, so they share a small wire adapter rather than two vendor SDKs.
+Vendor differences remain explicit in endpoint validation, allowed parameters,
+and response error handling.
 
-The workflow engine owns the model/tool loop. An adapter translates one provider
-turn into normalized events:
+### DeepSeek
 
-```text
-start_turn(request) -> stream<event>
-cancel_turn(provider_request_id)
-count_or_estimate_tokens(request)
+```json
+{
+  "name": "DeepSeek",
+  "adapter": "openai_compatible",
+  "base_url": "https://api.deepseek.com",
+  "credential_ref": "env://DEEPSEEK_API_KEY",
+  "enabled": true
+}
 ```
 
-Normalized events include:
+`https://api.deepseek.com/v1` is also accepted. Configure the exact current
+model identifier separately on the Model; Synod does not hard-code or silently
+substitute a vendor model.
+
+Allowed model defaults:
 
 ```text
-response_started
-text_delta
-tool_call_started
-tool_call_arguments_delta
-tool_call_completed
-usage
-response_completed
-response_failed
+max_tokens, temperature, top_p, thinking, reasoning_effort,
+response_format, stop
 ```
 
-The adapter does not decide which Synod tool to execute, how to authorize it, or
-whether another model turn is allowed. Those policies remain provider-neutral in
-the workflow engine.
+Sources: [DeepSeek Chat Completions API](https://api-docs.deepseek.com/api/create-chat-completion/),
+[official curl example](https://api-docs.deepseek.com/api_samples/chat_curl), and
+[error codes](https://api-docs.deepseek.com/quick_start/error_codes/).
 
-## No automatic fallback in the first version
+### MiniMax
 
-Automatic fallback sounds convenient but weakens reproducibility and identity
-consistency. A Run that starts with one Model should not silently finish with
-another.
+International endpoint:
 
-On failure:
+```json
+{
+  "name": "MiniMax",
+  "adapter": "openai_compatible",
+  "base_url": "https://api.minimax.io/v1",
+  "credential_ref": "env://MINIMAX_API_KEY",
+  "enabled": true
+}
+```
+
+For the mainland China service, use `https://api.minimaxi.com/v1`. Synod uses
+the current OpenAI-compatible endpoint, not the deprecated
+`/v1/text/chatcompletion_v2` API. It defaults `reasoning_split` to `true`, so
+reasoning content remains separate from the final answer.
+
+Allowed model defaults:
 
 ```text
-retry same Model
-or
-explicitly retry with another Model as a new Run
+max_completion_tokens, temperature, top_p, thinking, reasoning_split,
+service_tier
 ```
 
-The new Run links to the failed Run and records who requested the substitution.
+MiniMax may return HTTP success with a non-zero `base_resp.status_code`; Synod
+treats that as a failed provider attempt.
 
-## Switching models in a Conversation
+Sources: [MiniMax OpenAI-compatible Chat Completions](https://platform.minimax.io/docs/api-reference/text-chat-openai),
+[model invocation guide](https://platform.minimax.io/docs/guides/text-generation),
+and [error codes](https://platform.minimax.io/docs/api-reference/errorcode).
 
-A user may change an AI Member's Model while continuing its Conversation. Synod
-then rebuilds active context from its canonical transcript and context epoch.
-Provider-specific cursors are ignored unless they match the selected Model.
+## Credential boundary
 
-The timeline visibly records the boundary:
+`env://NAME` is executable now. The worker reads the named environment variable
+when starting a provider request; the value is never written to SQLite, returned
+by the API, or inserted into model context. Only ASCII letters, digits, and
+underscores are accepted in the variable name.
 
-```text
-Run 41: architect using Model A
-Run 42: architect changed to Model B
+`secret://...` remains a valid configuration reference for the future secret
+backend, but a Run using it currently fails explicitly. Public Provider JSON
+returns only `credential_configured`, never the reference or secret value.
+
+## Safety and reproducibility
+
+- only HTTPS and the three documented vendor hosts are allowed;
+- URL credentials, custom ports, arbitrary paths, streaming, and request-level
+  tools are rejected or excluded;
+- configured defaults are copied only from the vendor-specific allowlist and
+  cannot replace `model`, `messages`, or `stream`;
+- response bodies are bounded to 2 MiB;
+- there is no automatic model fallback or provider substitution;
+- a failed call records a failed Run without publishing a fake AI Comment.
+
+The adapter is deliberately non-streaming and single-turn today. Conversation
+history, read-only tools, multi-turn tool loops, cancellation, and retry policy
+will be added at the provider-neutral workflow layer rather than hidden in a
+vendor integration.
+
+## Model and AI Member examples
+
+```yaml
+model:
+  provider_id: configured-provider-id
+  model_name: exact-vendor-model-id
+  display_name: Review Model
+  capabilities:
+    streaming: false
+    tool_calling: false
+    structured_output: false
+    vision: false
+    provider_conversation: false
+  defaults:
+    temperature: 0.2
+
+ai_member:
+  handle: architect
+  display_name: Architect
+  identity_prompt: |
+    Review boundaries, scalability, migration risk, and unnecessary complexity.
+  default_model_id: configured-model-id
+  enabled: true
 ```
 
-The identity Prompt remains the same unless separately edited.
-
-## First-version scope
-
-- four adapter families;
-- explicit Providers and Models;
-- one default Model per AI Member;
-- per-Run Model override;
-- capability validation before invocation;
-- normalized streaming and tool-call events;
-- retry on the same Model;
-- explicit cross-model retry as a new Run;
-- no load balancing, scoring, automatic fallback, or dynamic routing.
-
-The provider-neutral `ModelGateway` boundary and normalized request/response
-types are now implemented. The execution service passes the exact Provider
-adapter, endpoint, credential reference, Model name, defaults, identity Prompt,
-and frozen context to that boundary without exposing credentials through public
-JSON. Native HTTP implementations for the four adapter families remain the next
-slice.
+If a later Run needs another Model, changing the configured default affects only
+new Runs. Cross-model retry must create a new Run and remain visible in history.

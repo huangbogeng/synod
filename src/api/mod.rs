@@ -394,10 +394,10 @@ mod tests {
             "/api/v1/providers",
             &bearer,
             Some(serde_json::json!({
-                "name": "OpenAI",
-                "adapter": "openai_responses",
-                "base_url": "https://api.openai.com",
-                "credential_ref": "env://OPENAI_API_KEY"
+                "name": "DeepSeek",
+                "adapter": "openai_compatible",
+                "base_url": "https://api.deepseek.com",
+                "credential_ref": "env://DEEPSEEK_API_KEY"
             })),
         )
         .await;
@@ -414,9 +414,9 @@ mod tests {
             &bearer,
             Some(serde_json::json!({
                 "provider_id": provider_id,
-                "model_name": "reasoning-model",
+                "model_name": "configured-deepseek-model",
                 "display_name": "Reasoning Model",
-                "capabilities": {"streaming": true, "tool_calling": true}
+                "capabilities": {"streaming": false, "tool_calling": false}
             })),
         )
         .await;

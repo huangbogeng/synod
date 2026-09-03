@@ -2,6 +2,10 @@ use std::future::Future;
 
 use crate::domain::{ModelRequest, ModelResponse, ProviderAdapter};
 
+mod http;
+
+pub use http::{HttpGateway, validate_provider_endpoint};
+
 #[derive(Clone)]
 pub struct ProviderRoute {
     pub adapter: ProviderAdapter,
@@ -13,6 +17,12 @@ pub struct ProviderRoute {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProviderError {
+    #[error("provider adapter is not supported: {0}")]
+    UnsupportedAdapter(String),
+    #[error("provider endpoint is not allowed: {0}")]
+    Endpoint(String),
+    #[error("provider credential is unavailable: {0}")]
+    Credential(String),
     #[error("provider request failed: {0}")]
     Request(String),
     #[error("provider response was invalid: {0}")]

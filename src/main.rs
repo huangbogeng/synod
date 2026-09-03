@@ -25,7 +25,7 @@ enum Command {
     Worker {
         #[command(flatten)]
         storage: StorageArgs,
-        /// Resolve at most one pending Dispatch and exit.
+        /// Resolve at most one Dispatch and execute at most one Run, then exit.
         #[arg(long)]
         once: bool,
     },
@@ -63,8 +63,12 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Command::Worker { storage, once } => {
             let database = Database::connect(&storage.database).await?;
             if once {
-                let processed = workers::process_once(&database).await?;
-                tracing::info!(processed, "worker pass completed");
+                let pass = workers::run_once(&database).await?;
+                tracing::info!(
+                    resolved_dispatch = pass.resolved_dispatch,
+                    executed_run = pass.executed_run,
+                    "worker pass completed"
+                );
                 Ok(())
             } else {
                 workers::run(database).await?;

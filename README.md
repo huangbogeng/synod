@@ -104,10 +104,12 @@ Issue creation, Comments, Provider/Model/AI Member configuration, Topic
 Membership, and static Teams. The worker now resolves durable mention snapshots:
 it expands Teams, deduplicates members, creates Human notifications, and queues
 one Run plus durable job for each available AI Member. The provider-neutral
-execution core can lease a queued job, freeze its initial Issue context, settle a
-normalized model response as an AI Comment, and record failure without publishing
-fake output. Native HTTP Provider adapters, extended context/tool assembly, and
-Proposal use cases are not implemented yet.
+execution core can lease a queued job, freeze its initial Issue context, call the
+configured DeepSeek or MiniMax model, settle a normalized model response as an
+AI Comment, and record failure without publishing fake output. The first native
+HTTP slice deliberately supports only these two vendors through their official
+Chat Completions endpoints. Extended context/tool assembly and Proposal use cases
+are not implemented yet.
 
 ## Run the foundation
 
@@ -136,7 +138,8 @@ curl -H "Authorization: Bearer $SYNOD_TOKEN" \
   http://127.0.0.1:3030/api/v1/me
 ```
 
-Resolve at most one pending Dispatch without starting the worker loop:
+Resolve at most one pending Dispatch and execute at most one queued Run without
+starting the worker loop:
 
 ```bash
 cargo run -- worker --once

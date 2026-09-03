@@ -685,7 +685,7 @@ mod tests {
                 &alice,
                 "Test".to_owned(),
                 ProviderAdapter::OpenaiCompatible,
-                "https://example.test/v1".to_owned(),
+                "https://api.deepseek.com".to_owned(),
                 "env://TEST_API_KEY".to_owned(),
             )
             .await

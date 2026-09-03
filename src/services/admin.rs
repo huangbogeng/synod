@@ -4,6 +4,7 @@ use crate::{
         validate_handle,
     },
     persistence::Database,
+    providers::validate_provider_endpoint,
 };
 
 use super::ServiceError;
@@ -29,9 +30,9 @@ impl AdminService {
     ) -> Result<Provider, ServiceError> {
         validate_text(&name, 100, "provider name is invalid")?;
         validate_text(&base_url, 2_000, "provider base URL is invalid")?;
-        if !(base_url.starts_with("https://") || base_url.starts_with("http://")) {
+        if validate_provider_endpoint(adapter, &base_url).is_err() {
             return Err(ServiceError::InvalidReference(
-                "provider base URL is invalid",
+                "only official DeepSeek and MiniMax endpoints are supported",
             ));
         }
         validate_text(&credential_ref, 500, "credential reference is invalid")?;

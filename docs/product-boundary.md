@@ -130,11 +130,12 @@ stream(request)   -> events
 capabilities()    -> model capabilities
 ```
 
-Provider adapters translate normalized requests for OpenAI, Anthropic, Google,
-OpenAI-compatible gateways, and local inference APIs. AI Members do not bind to
-tools. Runs record the identity Prompt version, explicit Model, parameters, and
-provider attempts. Automatic cross-model fallback is not part of the first
-version.
+The first Provider adapter translates normalized requests only for the official
+DeepSeek and MiniMax OpenAI-compatible endpoints. Other vendors may be added
+behind the same interface after their protocol is implemented. AI Members do not
+bind to tools. Runs record the identity Prompt version, explicit Model,
+parameters, and provider attempts. Automatic cross-model fallback is not part of
+the first version.
 
 ## Non-goals for the first version
 
