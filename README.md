@@ -6,6 +6,8 @@
 Synod is a lightweight, model-provider-neutral collaboration hub for AI-assisted
 research and software decisions.
 
+![Synod local unlock screen](docs/assets/screenshots/2026-09-03-unlock-screen.png)
+
 Its interaction model deliberately follows GitHub. A project is a Topic, a
 question or task is an Issue, a concrete resolution is a Proposal, and model
 work is recorded as observable Runs, Comments, and Reviews.
