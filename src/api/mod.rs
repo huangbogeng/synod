@@ -593,6 +593,54 @@ mod tests {
         let ai_id = ai_member["data"]["id"].as_str().unwrap();
         assert_eq!(ai_member["data"]["kind"], "ai");
 
+        let reviewer = send(
+            &app,
+            "POST",
+            "/api/v1/ai-members",
+            &bearer,
+            Some(serde_json::json!({
+                "handle": "reviewer",
+                "display_name": "Reviewer",
+                "identity_prompt": "Challenge the proposed implementation.",
+                "provider_id": provider_id,
+                "model_name": "configured-deepseek-model"
+            })),
+        )
+        .await;
+        assert_eq!(reviewer.status(), StatusCode::CREATED);
+        let configured_model_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM models WHERE provider_id = ? AND model_name = ?",
+        )
+        .bind(provider_id)
+        .bind("configured-deepseek-model")
+        .fetch_one(database.pool())
+        .await
+        .unwrap();
+        assert_eq!(configured_model_count, 1);
+
+        let duplicate = send(
+            &app,
+            "POST",
+            "/api/v1/ai-members",
+            &bearer,
+            Some(serde_json::json!({
+                "handle": "architect",
+                "display_name": "Duplicate Architect",
+                "identity_prompt": "This member must not be created.",
+                "provider_id": provider_id,
+                "model_name": "must-rollback-model"
+            })),
+        )
+        .await;
+        assert_eq!(duplicate.status(), StatusCode::CONFLICT);
+        let orphan_model_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM models WHERE model_name = ?")
+                .bind("must-rollback-model")
+                .fetch_one(database.pool())
+                .await
+                .unwrap();
+        assert_eq!(orphan_model_count, 0);
+
         let membership = send(
             &app,
             "PUT",

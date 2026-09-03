@@ -5,7 +5,6 @@ export interface ProviderPreset {
   baseUrl: string;
   environmentName: string;
   modelName: string;
-  modelDisplayName: string;
   accent: 'deepseek' | 'minimax';
 }
 
@@ -17,7 +16,6 @@ export const providerPresets: ProviderPreset[] = [
     baseUrl: 'https://api.deepseek.com',
     environmentName: 'DEEPSEEK_API_KEY',
     modelName: 'deepseek-v4-pro',
-    modelDisplayName: 'DeepSeek V4 Pro',
     accent: 'deepseek'
   },
   {
@@ -27,7 +25,6 @@ export const providerPresets: ProviderPreset[] = [
     baseUrl: 'https://api.minimaxi.com/v1',
     environmentName: 'MINIMAX_API_KEY',
     modelName: 'MiniMax-M2.7',
-    modelDisplayName: 'MiniMax M2.7',
     accent: 'minimax'
   }
 ];

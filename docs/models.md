@@ -9,6 +9,11 @@ first version.
 Provider -> Model -> AI Member -> Conversation
 ```
 
+This is an internal execution relationship, not a required three-step user
+workflow. The Web UI presents two concepts: Provider routes and AI Members. A
+Member chooses a Provider plus exact model identifier; Synod creates or reuses
+the corresponding internal Model record when the Member is saved.
+
 - Provider describes how and where to call an API.
 - Model identifies one configured model and its capabilities.
 - AI Member adds an identity Prompt and chooses a default Model.
@@ -32,7 +37,7 @@ The Web UI can test a saved Provider and discover its models without returning
 the credential to the browser. Synod calls the vendor's authenticated model-list
 endpoint with a 15-second timeout, bounds the response to 2 MiB and 1,000 usable
 model identifiers, then sorts and deduplicates it. The selected identifier is
-copied into the explicit Model form; discovery never creates or silently
+copied into the AI Member form; discovery alone never creates or silently
 switches a Model.
 
 ### DeepSeek
@@ -149,9 +154,15 @@ ai_member:
   display_name: Architect
   identity_prompt: |
     Review boundaries, scalability, migration risk, and unnecessary complexity.
-  default_model_id: configured-model-id
+  provider_id: configured-provider-id
+  model_name: exact-vendor-model-id
   enabled: true
 ```
+
+The Web UI exposes only Provider route and AI Member. On Member creation, Synod
+atomically reuses or creates the internal Model record, then stores its ID as
+the Member's reproducible default. A failed Member creation leaves no orphaned
+Model record.
 
 If a later Run needs another Model, changing the configured default affects only
 new Runs. Cross-model retry must create a new Run and remain visible in history.

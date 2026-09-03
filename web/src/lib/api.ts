@@ -139,7 +139,7 @@ export function createModel(
 
 export function createAiMember(
   token: string,
-  input: { handle: string; display_name: string; identity_prompt: string; default_model_id: string }
+  input: { handle: string; display_name: string; identity_prompt: string; provider_id: string; model_name: string }
 ): Promise<AiMember> {
   return request('/api/v1/ai-members', token, 'POST', input);
 }

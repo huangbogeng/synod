@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createAiMember, createModel, createProvider, discoverProviderModels, loadAdminWorkspace } from '../lib/api';
+  import { createAiMember, createProvider, discoverProviderModels, loadAdminWorkspace } from '../lib/api';
   import { providerPresets } from '../lib/providerPresets';
   import type { AdminWorkspace, DiscoveredModel, Provider } from '../lib/types';
 
@@ -20,14 +20,12 @@
   let environmentName = 'DEEPSEEK_API_KEY';
   let modelProviderId = '';
   let modelName = providerPresets[0].modelName;
-  let modelDisplayName = providerPresets[0].modelDisplayName;
-  let memberModelId = '';
   let memberHandle = '';
   let memberDisplayName = '';
   let memberPrompt = '';
 
-  $: if (!modelProviderId && data.providers.length) modelProviderId = data.providers[0].id;
-  $: if (!memberModelId && data.models.length) memberModelId = data.models[0].id;
+  $: selectedProvider = data.providers.find((provider) => provider.id === modelProviderId) ?? null;
+  $: modelChoices = modelProviderId ? (discovered[modelProviderId] ?? []) : [];
 
   load();
 
@@ -35,6 +33,10 @@
     loading = true;
     try {
       data = await loadAdminWorkspace(token);
+      if (!modelProviderId && data.providers.length) {
+        modelProviderId = data.providers[0].id;
+        chooseMemberProvider();
+      }
     } catch (cause) {
       error = cause instanceof Error ? cause.message : 'Settings could not be loaded.';
     } finally {
@@ -48,7 +50,6 @@
     providerName = preset.name;
     environmentName = preset.environmentName;
     modelName = preset.modelName;
-    modelDisplayName = preset.modelDisplayName;
   }
 
   async function submitProvider() {
@@ -66,22 +67,8 @@
       apiKey = '';
       if (!modelName) chooseVendor(vendor);
       notice = credentialMode === 'api_key'
-        ? `${providerName} is connected locally. Now register its model.`
+        ? `${providerName} is connected locally. You can now create a Member with it.`
         : `${providerName} route created. Restart Synod with ${environmentName} set before running it.`;
-    });
-  }
-
-  async function submitModel() {
-    await perform('model', async () => {
-      await createModel(token, {
-        provider_id: modelProviderId,
-        model_name: modelName,
-        display_name: modelDisplayName,
-        capabilities: { streaming: false, tool_calling: false }
-      });
-      modelName = '';
-      modelDisplayName = '';
-      notice = 'Model added. You can now give an AI Member this voice.';
     });
   }
 
@@ -104,7 +91,14 @@
   function chooseModel(providerId: string, discoveredName: string) {
     modelProviderId = providerId;
     modelName = discoveredName;
-    modelDisplayName = discoveredName;
+  }
+
+  function chooseMemberProvider() {
+    const provider = data.providers.find((candidate) => candidate.id === modelProviderId);
+    if (!provider) return;
+    const preset = providerPresets.find((candidate) => provider.base_url.startsWith(candidate.baseUrl));
+    const firstDiscovered = discovered[provider.id]?.[0]?.id;
+    modelName = firstDiscovered ?? preset?.modelName ?? '';
   }
 
   async function submitMember() {
@@ -113,7 +107,8 @@
         handle: memberHandle,
         display_name: memberDisplayName,
         identity_prompt: memberPrompt,
-        default_model_id: memberModelId
+        provider_id: modelProviderId,
+        model_name: modelName
       });
       memberHandle = '';
       memberDisplayName = '';
@@ -138,7 +133,7 @@
 </script>
 
 <section class="settings-page page-enter">
-  <header class="settings-header"><div><p class="eyebrow">LOCAL ADMINISTRATION</p><h1>Give the council its voices.</h1><p>Choose a DeepSeek or MiniMax preset, keep its credential on this machine, register a model, then shape an AI Member with one identity prompt.</p></div></header>
+  <header class="settings-header"><div><p class="eyebrow">LOCAL ADMINISTRATION</p><h1>Give the council its voices.</h1><p>Connect a Provider once. Each AI Member then chooses the model it needs and adds one identity prompt.</p></div></header>
   {#if error}<p class="settings-message settings-message--error">{error}</p>{/if}
   {#if notice}<p class="settings-message">{notice}</p>{/if}
 
@@ -165,34 +160,28 @@
         </form>
         <div class="record-list">
           {#each data.providers as provider}
-            <div class="provider-record"><div><strong>{provider.name}</strong><small>{provider.base_url}</small></div><button type="button" disabled={discovering === provider.id} on:click={() => discoverModels(provider)}>{discovering === provider.id ? 'TESTING…' : 'TEST + MODELS'}</button></div>
-            {#if discovered[provider.id]}
-              <div class="model-results">{#each discovered[provider.id] as found}<button type="button" class:active={modelProviderId === provider.id && modelName === found.id} on:click={() => chooseModel(provider.id, found.id)}>{found.id}</button>{/each}</div>
-            {/if}
+            <div class="provider-record"><div><strong>{provider.name}</strong><small>{provider.base_url}</small></div><button type="button" disabled={discovering === provider.id} on:click={() => discoverModels(provider)}>{discovering === provider.id ? 'TESTING…' : 'TEST'}</button></div>
           {:else}<p>No provider routes yet.</p>{/each}
         </div>
       </section>
 
       <section class="settings-card">
-        <header><span>02</span><div><h2>Model</h2><p>Use the exact model identifier from the vendor.</p></div></header>
-        <form class="stack-form" on:submit|preventDefault={submitModel}>
-          <label>Provider<select bind:value={modelProviderId} required><option value="" disabled>Select a provider</option>{#each data.providers as provider}<option value={provider.id}>{provider.name}</option>{/each}</select></label>
-          <label>Model identifier<input bind:value={modelName} required placeholder="deepseek-chat" /></label>
-          <label>Display name<input bind:value={modelDisplayName} required placeholder="DeepSeek Reviewer" /></label>
-          <button class="button button--primary" type="submit" disabled={!data.providers.length || busy === 'model'}>{busy === 'model' ? 'Saving…' : 'Add model'}</button>
-        </form>
-        <div class="record-list">{#each data.models as model}<div><strong>{model.display_name}</strong><small>{model.model_name}</small><span>{model.enabled ? 'READY' : 'OFF'}</span></div>{:else}<p>No models yet.</p>{/each}</div>
-      </section>
-
-      <section class="settings-card">
-        <header><span>03</span><div><h2>AI Member</h2><p>Identity is a prompt; model routing stays separate.</p></div></header>
+        <header><span>02</span><div><h2>AI Member</h2><p>Choose a Provider and bind the model directly to this identity.</p></div></header>
         <form class="stack-form" on:submit|preventDefault={submitMember}>
-          <label>Default model<select bind:value={memberModelId} required><option value="" disabled>Select a model</option>{#each data.models as model}<option value={model.id}>{model.display_name}</option>{/each}</select></label>
+          <label>Provider<select bind:value={modelProviderId} on:change={chooseMemberProvider} required><option value="" disabled>Select a provider</option>{#each data.providers as provider}<option value={provider.id}>{provider.name}</option>{/each}</select></label>
+          <label>Model identifier<input bind:value={modelName} list="provider-models" required placeholder="Choose a discovered model or enter its exact ID" /></label>
+          <datalist id="provider-models">{#each modelChoices as found}<option value={found.id}></option>{/each}</datalist>
+          {#if selectedProvider}
+            <div class="member-model-tools"><button type="button" disabled={discovering === selectedProvider.id} on:click={() => discoverModels(selectedProvider)}>{discovering === selectedProvider.id ? 'Testing connection…' : 'Test connection · discover models'}</button></div>
+          {/if}
+          {#if modelChoices.length}
+            <div class="model-results">{#each modelChoices as found}<button type="button" class:active={modelName === found.id} on:click={() => chooseModel(modelProviderId, found.id)}>{found.id}</button>{/each}</div>
+          {/if}
           <div class="field-pair"><label>Handle<input bind:value={memberHandle} required placeholder="architect" /></label><label>Display name<input bind:value={memberDisplayName} required placeholder="Architect" /></label></div>
           <label>Identity prompt<textarea bind:value={memberPrompt} required rows="5" placeholder="Review architecture boundaries and challenge hidden assumptions."></textarea></label>
-          <button class="button button--primary" type="submit" disabled={!data.models.length || busy === 'member'}>{busy === 'member' ? 'Saving…' : 'Create member'}</button>
+          <button class="button button--primary" type="submit" disabled={!data.providers.length || busy === 'member'}>{busy === 'member' ? 'Saving…' : 'Create member'}</button>
         </form>
-        <div class="record-list">{#each data.aiMembers as member}<div><strong>{member.display_name}</strong><small>@{member.handle}</small><span>V{member.identity_prompt_version}</span></div>{:else}<p>No AI Members yet.</p>{/each}</div>
+        <div class="record-list">{#each data.aiMembers as member}<div><strong>{member.display_name}</strong><small>@{member.handle} · {data.models.find((model) => model.id === member.default_model_id)?.model_name ?? 'model unavailable'}</small><span>V{member.identity_prompt_version}</span></div>{:else}<p>No AI Members yet.</p>{/each}</div>
       </section>
     </div>
   {/if}

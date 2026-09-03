@@ -117,7 +117,9 @@ Comments. The preset-first Provider form accepts either a local API key or an
 `env://` reference. Local keys are stored in the permission-restricted SQLite
 database and are never returned by the HTTP API. Saved Providers can be tested
 against their official model-list endpoint and a discovered model can be copied
-directly into the Model form.
+directly into the AI Member form. The UI creates or reuses the internal Model
+record when that Member is saved, so users manage only Provider routes and
+Members.
 
 ## Run the foundation
 

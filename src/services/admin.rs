@@ -148,6 +148,32 @@ impl AdminService {
             .map_err(Into::into)
     }
 
+    pub async fn create_ai_member_for_model(
+        &self,
+        actor: &Principal,
+        handle: String,
+        display_name: String,
+        identity_prompt: String,
+        provider_id: ProviderId,
+        model_name: String,
+    ) -> Result<AiMember, ServiceError> {
+        validate_handle(&handle)?;
+        validate_text(&display_name, 100, "AI Member display name is invalid")?;
+        validate_text(&identity_prompt, 100_000, "identity Prompt is invalid")?;
+        validate_text(&model_name, 200, "model name is invalid")?;
+        self.database
+            .insert_ai_member_for_model(
+                actor.id,
+                &handle,
+                display_name.trim(),
+                &identity_prompt,
+                provider_id,
+                model_name.trim(),
+            )
+            .await
+            .map_err(Into::into)
+    }
+
     pub async fn list_ai_members(&self, actor: &Principal) -> Result<Vec<AiMember>, ServiceError> {
         self.database
             .list_ai_members(actor.id)

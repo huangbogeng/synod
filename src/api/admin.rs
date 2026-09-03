@@ -42,7 +42,9 @@ pub struct CreateAiMemberRequest {
     handle: String,
     display_name: String,
     identity_prompt: String,
-    default_model_id: String,
+    default_model_id: Option<String>,
+    provider_id: Option<String>,
+    model_name: Option<String>,
 }
 
 pub async fn create_provider(
@@ -153,17 +155,45 @@ pub async fn create_ai_member(
     AuthenticatedPrincipal(principal): AuthenticatedPrincipal,
     Json(request): Json<CreateAiMemberRequest>,
 ) -> Result<(StatusCode, Json<Data<crate::domain::AiMember>>), ApiError> {
-    let model_id = ModelId::from_str(&request.default_model_id)
-        .map_err(|_| ApiError::BadRequest("model identifier is invalid"))?;
-    let member = AdminService::new(state.database)
-        .create_ai_member(
-            &principal,
-            request.handle,
-            request.display_name,
-            request.identity_prompt,
-            model_id,
-        )
-        .await?;
+    let service = AdminService::new(state.database);
+    let member = match (
+        request.default_model_id,
+        request.provider_id,
+        request.model_name,
+    ) {
+        (Some(model_id), None, None) => {
+            let model_id = ModelId::from_str(&model_id)
+                .map_err(|_| ApiError::BadRequest("model identifier is invalid"))?;
+            service
+                .create_ai_member(
+                    &principal,
+                    request.handle,
+                    request.display_name,
+                    request.identity_prompt,
+                    model_id,
+                )
+                .await?
+        }
+        (None, Some(provider_id), Some(model_name)) => {
+            let provider_id = ProviderId::from_str(&provider_id)
+                .map_err(|_| ApiError::BadRequest("provider identifier is invalid"))?;
+            service
+                .create_ai_member_for_model(
+                    &principal,
+                    request.handle,
+                    request.display_name,
+                    request.identity_prompt,
+                    provider_id,
+                    model_name,
+                )
+                .await?
+        }
+        _ => {
+            return Err(ApiError::BadRequest(
+                "provide either default_model_id or provider_id with model_name",
+            ));
+        }
+    };
     Ok((StatusCode::CREATED, Json(Data { data: member })))
 }
 

@@ -12,7 +12,8 @@ an environment-variable reference for externally managed credentials. Secret
 values are accepted write-only and never returned by the API.
 Each saved Provider also exposes a `Test + models` action. Discovery runs in the
 Rust process with the stored credential; choosing a result fills the separate
-Model form rather than silently changing configuration.
+AI Member model field. Saving the Member creates or reuses the internal Model
+record; Model remains a reproducibility boundary, not a third settings card.
 
 For frontend development, run the Rust API and Vite separately:
 

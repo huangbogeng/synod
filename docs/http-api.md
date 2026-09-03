@@ -178,6 +178,12 @@ PUT    /teams/{team_id}/members/{principal_id}
 Provider, Model, and AI Member records are server administrative resources. API
 responses expose credential presence but never references or secret values.
 
+The Web UI presents only two concepts: Provider route and AI Member. Creating
+an AI Member sends `provider_id` plus the vendor's exact `model_name`; the server
+atomically reuses or creates the internal Model record and then binds it to the
+Member. API clients may still send `default_model_id` when managing Models
+directly, but must not mix the two request forms.
+
 The current implementation supports listing and creating Providers, Models, and
 AI Members. Only the bootstrap Human may use these server-wide endpoints.
 Provider creation accepts exactly one of a write-only `api_key` or an `env://`

@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use sqlx::Row;
+use sqlx::{Row, Sqlite, Transaction};
 
 use crate::domain::{
     AiMember, MembershipRole, Model, ModelId, ModelInput, Principal, PrincipalId, PrincipalKind,
@@ -229,7 +229,6 @@ impl Database {
         default_model_id: ModelId,
     ) -> Result<AiMember, StoreError> {
         self.require_server_admin(actor_id).await?;
-        let id = PrincipalId::new();
         let mut transaction = self.pool.begin().await?;
         let model_exists: i64 =
             sqlx::query_scalar("SELECT COUNT(*) FROM models WHERE id = ? AND enabled = 1")
@@ -239,53 +238,81 @@ impl Database {
         if model_exists != 1 {
             return Err(StoreError::InvalidReference("model is missing or disabled"));
         }
-        let team_collision: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM teams WHERE handle = ? COLLATE NOCASE")
-                .bind(handle)
-                .fetch_one(&mut *transaction)
-                .await?;
-        if team_collision != 0 {
-            return Err(StoreError::Conflict);
-        }
-        sqlx::query(
-            "INSERT INTO principals(id, kind, handle, display_name, created_at)
-             VALUES (?, 'ai', ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+        let member = insert_ai_member_in_transaction(
+            &mut transaction,
+            actor_id,
+            handle,
+            display_name,
+            identity_prompt,
+            default_model_id,
         )
-        .bind(id.to_string())
-        .bind(handle)
-        .bind(display_name)
-        .execute(&mut *transaction)
-        .await
-        .map_err(super::store::map_constraint)?;
-        sqlx::query(
-            "INSERT INTO ai_profiles(principal_id, identity_prompt_version, default_model_id)
-             VALUES (?, 1, ?)",
-        )
-        .bind(id.to_string())
-        .bind(default_model_id.to_string())
-        .execute(&mut *transaction)
-        .await?;
-        sqlx::query(
-            "INSERT INTO ai_prompt_versions(
-                ai_principal_id, version, prompt, created_by_principal_id, created_at
-             ) VALUES (?, 1, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
-        )
-        .bind(id.to_string())
-        .bind(identity_prompt)
-        .bind(actor_id.to_string())
-        .execute(&mut *transaction)
         .await?;
         transaction.commit().await?;
-        Ok(AiMember {
-            principal: Principal {
-                id,
-                kind: PrincipalKind::Ai,
-                handle: handle.to_owned(),
-                display_name: display_name.to_owned(),
-            },
-            identity_prompt_version: 1,
-            default_model_id,
-        })
+        Ok(member)
+    }
+
+    pub(crate) async fn insert_ai_member_for_model(
+        &self,
+        actor_id: PrincipalId,
+        handle: &str,
+        display_name: &str,
+        identity_prompt: &str,
+        provider_id: ProviderId,
+        model_name: &str,
+    ) -> Result<AiMember, StoreError> {
+        self.require_server_admin(actor_id).await?;
+        let mut transaction = self.pool.begin().await?;
+        let provider_exists: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM providers WHERE id = ? AND enabled = 1")
+                .bind(provider_id.to_string())
+                .fetch_one(&mut *transaction)
+                .await?;
+        if provider_exists != 1 {
+            return Err(StoreError::InvalidReference(
+                "provider is missing or disabled",
+            ));
+        }
+        let existing: Option<String> = sqlx::query_scalar(
+            "SELECT id FROM models
+             WHERE provider_id = ? AND model_name = ? AND enabled = 1",
+        )
+        .bind(provider_id.to_string())
+        .bind(model_name)
+        .fetch_optional(&mut *transaction)
+        .await?;
+        let model_id = if let Some(existing) = existing {
+            ModelId::from_str(&existing)
+                .map_err(|_| StoreError::CorruptData("model identifier is invalid"))?
+        } else {
+            let id = ModelId::new();
+            sqlx::query(
+                "INSERT INTO models(
+                    id, provider_id, model_name, display_name, capabilities,
+                    limits_json, defaults_json, created_at, updated_at
+                 ) VALUES (?, ?, ?, ?, '{}', '{}', '{}',
+                    strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+                    strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+            )
+            .bind(id.to_string())
+            .bind(provider_id.to_string())
+            .bind(model_name)
+            .bind(model_name)
+            .execute(&mut *transaction)
+            .await
+            .map_err(super::store::map_constraint)?;
+            id
+        };
+        let member = insert_ai_member_in_transaction(
+            &mut transaction,
+            actor_id,
+            handle,
+            display_name,
+            identity_prompt,
+            model_id,
+        )
+        .await?;
+        transaction.commit().await?;
+        Ok(member)
     }
 
     pub(crate) async fn list_ai_members(
@@ -516,6 +543,63 @@ impl Database {
             .find(|team| team.id == team_id)
             .ok_or(StoreError::NotFound)
     }
+}
+
+async fn insert_ai_member_in_transaction(
+    transaction: &mut Transaction<'_, Sqlite>,
+    actor_id: PrincipalId,
+    handle: &str,
+    display_name: &str,
+    identity_prompt: &str,
+    default_model_id: ModelId,
+) -> Result<AiMember, StoreError> {
+    let id = PrincipalId::new();
+    let team_collision: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM teams WHERE handle = ? COLLATE NOCASE")
+            .bind(handle)
+            .fetch_one(&mut **transaction)
+            .await?;
+    if team_collision != 0 {
+        return Err(StoreError::Conflict);
+    }
+    sqlx::query(
+        "INSERT INTO principals(id, kind, handle, display_name, created_at)
+         VALUES (?, 'ai', ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+    )
+    .bind(id.to_string())
+    .bind(handle)
+    .bind(display_name)
+    .execute(&mut **transaction)
+    .await
+    .map_err(super::store::map_constraint)?;
+    sqlx::query(
+        "INSERT INTO ai_profiles(principal_id, identity_prompt_version, default_model_id)
+         VALUES (?, 1, ?)",
+    )
+    .bind(id.to_string())
+    .bind(default_model_id.to_string())
+    .execute(&mut **transaction)
+    .await?;
+    sqlx::query(
+        "INSERT INTO ai_prompt_versions(
+            ai_principal_id, version, prompt, created_by_principal_id, created_at
+         ) VALUES (?, 1, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+    )
+    .bind(id.to_string())
+    .bind(identity_prompt)
+    .bind(actor_id.to_string())
+    .execute(&mut **transaction)
+    .await?;
+    Ok(AiMember {
+        principal: Principal {
+            id,
+            kind: PrincipalKind::Ai,
+            handle: handle.to_owned(),
+            display_name: display_name.to_owned(),
+        },
+        identity_prompt_version: 1,
+        default_model_id,
+    })
 }
 
 async fn require_human_writer(
