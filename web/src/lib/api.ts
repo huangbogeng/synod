@@ -107,7 +107,13 @@ export async function loadAdminWorkspace(token: string): Promise<AdminWorkspace>
 
 export function createProvider(
   token: string,
-  input: { name: string; adapter: 'openai_compatible'; base_url: string; credential_ref: string }
+  input: {
+    name: string;
+    adapter: 'openai_compatible';
+    base_url: string;
+    credential_ref?: string;
+    api_key?: string;
+  }
 ): Promise<Provider> {
   return request('/api/v1/providers', token, 'POST', input);
 }

@@ -21,6 +21,9 @@ pub struct Database {
 
 impl Database {
     pub async fn connect(path: &Path) -> Result<Self, sqlx::Error> {
+        if path != Path::new(":memory:") {
+            secure_database_file(path)?;
+        }
         let options = if path == Path::new(":memory:") {
             SqliteConnectOptions::from_str("sqlite::memory:")?
         } else {
@@ -51,6 +54,30 @@ impl Database {
     pub const fn pool(&self) -> &SqlitePool {
         &self.pool
     }
+}
+
+#[cfg(unix)]
+fn secure_database_file(path: &Path) -> Result<(), sqlx::Error> {
+    use std::fs::{OpenOptions, Permissions};
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+
+    OpenOptions::new()
+        .create(true)
+        .append(true)
+        .mode(0o600)
+        .open(path)
+        .map_err(sqlx::Error::Io)?;
+    std::fs::set_permissions(path, Permissions::from_mode(0o600)).map_err(sqlx::Error::Io)
+}
+
+#[cfg(not(unix))]
+fn secure_database_file(path: &Path) -> Result<(), sqlx::Error> {
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map(|_| ())
+        .map_err(sqlx::Error::Io)
 }
 
 #[cfg(test)]
@@ -89,6 +116,7 @@ mod tests {
             "proposals",
             "providers",
             "provider_attempts",
+            "provider_secrets",
             "runs",
             "team_members",
             "teams",

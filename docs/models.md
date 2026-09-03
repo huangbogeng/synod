@@ -90,14 +90,18 @@ and [error codes](https://platform.minimax.io/docs/api-reference/errorcode).
 
 ## Credential boundary
 
-`env://NAME` is executable now. The worker reads the named environment variable
-when starting a provider request; the value is never written to SQLite, returned
-by the API, or inserted into model context. Only ASCII letters, digits, and
-underscores are accepted in the variable name.
+The preset-first Web form offers two local credential modes:
 
-`secret://...` remains a valid configuration reference for the future secret
-backend, but a Run using it currently fails explicitly. Public Provider JSON
-returns only `credential_configured`, never the reference or secret value.
+- a write-only `api_key`, stored in `provider_secrets` inside the local SQLite
+  database and represented internally by `secret://<provider-id>`;
+- an `env://NAME` reference, resolved from the worker process environment.
+
+The database file is created with owner-only permissions on Unix. This is local
+at-rest access control, not encryption: users requiring an external secret
+manager should choose `env://NAME`. In both modes, public Provider JSON returns
+only `credential_configured`; credential references and secret values are never
+returned or inserted into model context. Environment variable names accept only
+ASCII letters, digits, and underscores.
 
 ## Safety and reproducibility
 

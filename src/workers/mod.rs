@@ -42,7 +42,7 @@ where
 }
 
 pub async fn run_once(database: &Database) -> Result<WorkerPass, WorkerError> {
-    let gateway = HttpGateway::new()?;
+    let gateway = HttpGateway::new(database.clone())?;
     run_pass(database, &gateway).await
 }
 
@@ -60,7 +60,7 @@ where
 
 pub async fn run(database: Database) -> Result<(), WorkerError> {
     tracing::info!("worker started");
-    let gateway = HttpGateway::new()?;
+    let gateway = HttpGateway::new(database.clone())?;
     let mut interval = time::interval(Duration::from_secs(2));
 
     loop {

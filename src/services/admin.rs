@@ -28,21 +28,40 @@ impl AdminService {
         base_url: String,
         credential_ref: String,
     ) -> Result<Provider, ServiceError> {
-        validate_text(&name, 100, "provider name is invalid")?;
-        validate_text(&base_url, 2_000, "provider base URL is invalid")?;
-        if validate_provider_endpoint(adapter, &base_url).is_err() {
-            return Err(ServiceError::InvalidReference(
-                "only official DeepSeek and MiniMax endpoints are supported",
-            ));
-        }
+        validate_provider(&name, adapter, &base_url)?;
         validate_text(&credential_ref, 500, "credential reference is invalid")?;
-        if !(credential_ref.starts_with("env://") || credential_ref.starts_with("secret://")) {
+        let Some(environment_name) = credential_ref.strip_prefix("env://") else {
             return Err(ServiceError::InvalidReference(
-                "credential reference must use env:// or secret://",
+                "external credential reference must use env://",
+            ));
+        };
+        if environment_name.is_empty()
+            || !environment_name
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+        {
+            return Err(ServiceError::InvalidReference(
+                "environment variable reference is invalid",
             ));
         }
         self.database
             .insert_provider(actor.id, name.trim(), adapter, &base_url, &credential_ref)
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn create_provider_with_secret(
+        &self,
+        actor: &Principal,
+        name: String,
+        adapter: ProviderAdapter,
+        base_url: String,
+        secret: String,
+    ) -> Result<Provider, ServiceError> {
+        validate_provider(&name, adapter, &base_url)?;
+        validate_text(&secret, 8_192, "provider API key is invalid")?;
+        self.database
+            .insert_provider_with_secret(actor.id, name.trim(), adapter, &base_url, secret.trim())
             .await
             .map_err(Into::into)
     }
@@ -132,4 +151,19 @@ fn validate_text(value: &str, max_chars: usize, message: &'static str) -> Result
     } else {
         Ok(())
     }
+}
+
+fn validate_provider(
+    name: &str,
+    adapter: ProviderAdapter,
+    base_url: &str,
+) -> Result<(), ServiceError> {
+    validate_text(name, 100, "provider name is invalid")?;
+    validate_text(base_url, 2_000, "provider base URL is invalid")?;
+    if validate_provider_endpoint(adapter, base_url).is_err() {
+        return Err(ServiceError::InvalidReference(
+            "only official DeepSeek and MiniMax endpoints are supported",
+        ));
+    }
+    Ok(())
 }

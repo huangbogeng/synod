@@ -113,8 +113,9 @@ are not implemented yet. The Svelte Web UI is embedded into the Rust binary and
 now covers the first usable council loop: local token unlock, Provider/Model/AI
 Member setup, Topic creation, Topic seats and one-member Team setup, Issue
 creation, Issue timelines, Comments, mentions, Run state refresh, and final AI
-Comments. Provider secrets remain process environment variables; the browser
-stores only their `env://` references.
+Comments. The preset-first Provider form accepts either a local API key or an
+`env://` reference. Local keys are stored in the permission-restricted SQLite
+database and are never returned by the HTTP API.
 
 ## Run the foundation
 
@@ -125,8 +126,8 @@ cargo run -- bootstrap --handle admin --display-name "Administrator"
 cargo run -- dev
 ```
 
-To execute model Runs, export the environment variable named while creating the
-Provider before starting `dev`, for example:
+When choosing environment-variable credentials, export the named variable
+before starting `dev`, for example:
 
 ```bash
 export DEEPSEEK_API_KEY="..."

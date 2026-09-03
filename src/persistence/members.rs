@@ -65,6 +65,69 @@ impl Database {
         })
     }
 
+    pub(crate) async fn insert_provider_with_secret(
+        &self,
+        actor_id: PrincipalId,
+        name: &str,
+        adapter: ProviderAdapter,
+        base_url: &str,
+        secret: &str,
+    ) -> Result<Provider, StoreError> {
+        self.require_server_admin(actor_id).await?;
+        let id = ProviderId::new();
+        let credential_ref = format!("secret://{id}");
+        let mut transaction = self.pool.begin().await?;
+        sqlx::query(
+            "INSERT INTO providers(
+                id, name, adapter, base_url, credential_ref, created_at, updated_at
+             ) VALUES (?, ?, ?, ?, ?,
+                strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+                strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+        )
+        .bind(id.to_string())
+        .bind(name)
+        .bind(adapter.as_str())
+        .bind(base_url)
+        .bind(&credential_ref)
+        .execute(&mut *transaction)
+        .await
+        .map_err(super::store::map_constraint)?;
+        sqlx::query(
+            "INSERT INTO provider_secrets(provider_id, secret, created_at, updated_at)
+             VALUES (?, ?,
+                strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+                strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+        )
+        .bind(id.to_string())
+        .bind(secret)
+        .execute(&mut *transaction)
+        .await?;
+        transaction.commit().await?;
+        Ok(Provider {
+            id,
+            name: name.to_owned(),
+            adapter,
+            base_url: base_url.to_owned(),
+            credential_configured: true,
+            enabled: true,
+        })
+    }
+
+    pub(crate) async fn resolve_provider_secret(
+        &self,
+        credential_ref: &str,
+    ) -> Result<Option<String>, StoreError> {
+        let Some(provider_id) = credential_ref.strip_prefix("secret://") else {
+            return Ok(None);
+        };
+        let secret =
+            sqlx::query_scalar("SELECT secret FROM provider_secrets WHERE provider_id = ?")
+                .bind(provider_id)
+                .fetch_optional(&self.pool)
+                .await?;
+        Ok(secret)
+    }
+
     pub(crate) async fn list_providers(
         &self,
         actor_id: PrincipalId,

@@ -19,7 +19,8 @@ pub struct CreateProviderRequest {
     name: String,
     adapter: ProviderAdapter,
     base_url: String,
-    credential_ref: String,
+    credential_ref: Option<String>,
+    api_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,15 +49,36 @@ pub async fn create_provider(
     AuthenticatedPrincipal(principal): AuthenticatedPrincipal,
     Json(request): Json<CreateProviderRequest>,
 ) -> Result<(StatusCode, Json<Data<crate::domain::Provider>>), ApiError> {
-    let provider = AdminService::new(state.database)
-        .create_provider(
-            &principal,
-            request.name,
-            request.adapter,
-            request.base_url,
-            request.credential_ref,
-        )
-        .await?;
+    let service = AdminService::new(state.database);
+    let provider = match (request.credential_ref, request.api_key) {
+        (Some(reference), None) => {
+            service
+                .create_provider(
+                    &principal,
+                    request.name,
+                    request.adapter,
+                    request.base_url,
+                    reference,
+                )
+                .await?
+        }
+        (None, Some(secret)) => {
+            service
+                .create_provider_with_secret(
+                    &principal,
+                    request.name,
+                    request.adapter,
+                    request.base_url,
+                    secret,
+                )
+                .await?
+        }
+        _ => {
+            return Err(ApiError::BadRequest(
+                "provide exactly one of credential_ref or api_key",
+            ));
+        }
+    };
     Ok((StatusCode::CREATED, Json(Data { data: provider })))
 }
 

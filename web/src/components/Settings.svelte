@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createAiMember, createModel, createProvider, loadAdminWorkspace } from '../lib/api';
+  import { providerPresets } from '../lib/providerPresets';
   import type { AdminWorkspace } from '../lib/types';
 
   export let token: string;
@@ -12,10 +13,12 @@
 
   let vendor: 'deepseek' | 'minimax' = 'deepseek';
   let providerName = 'DeepSeek';
+  let credentialMode: 'api_key' | 'environment' = 'api_key';
+  let apiKey = '';
   let environmentName = 'DEEPSEEK_API_KEY';
   let modelProviderId = '';
-  let modelName = '';
-  let modelDisplayName = '';
+  let modelName = providerPresets[0].modelName;
+  let modelDisplayName = providerPresets[0].modelDisplayName;
   let memberModelId = '';
   let memberHandle = '';
   let memberDisplayName = '';
@@ -37,20 +40,32 @@
     }
   }
 
-  function chooseVendor() {
-    providerName = vendor === 'deepseek' ? 'DeepSeek' : 'MiniMax';
-    environmentName = vendor === 'deepseek' ? 'DEEPSEEK_API_KEY' : 'MINIMAX_API_KEY';
+  function chooseVendor(nextVendor: 'deepseek' | 'minimax') {
+    vendor = nextVendor;
+    const preset = providerPresets.find((candidate) => candidate.id === vendor) ?? providerPresets[0];
+    providerName = preset.name;
+    environmentName = preset.environmentName;
+    modelName = preset.modelName;
+    modelDisplayName = preset.modelDisplayName;
   }
 
   async function submitProvider() {
     await perform('provider', async () => {
-      await createProvider(token, {
+      const preset = providerPresets.find((candidate) => candidate.id === vendor) ?? providerPresets[0];
+      const provider = await createProvider(token, {
         name: providerName,
         adapter: 'openai_compatible',
-        base_url: vendor === 'deepseek' ? 'https://api.deepseek.com' : 'https://api.minimaxi.com/v1',
-        credential_ref: `env://${environmentName}`
+        base_url: preset.baseUrl,
+        ...(credentialMode === 'api_key'
+          ? { api_key: apiKey }
+          : { credential_ref: `env://${environmentName}` })
       });
-      notice = `${providerName} route created. Restart Synod with ${environmentName} set before running it.`;
+      modelProviderId = provider.id;
+      apiKey = '';
+      if (!modelName) chooseVendor(vendor);
+      notice = credentialMode === 'api_key'
+        ? `${providerName} is connected locally. Now register its model.`
+        : `${providerName} route created. Restart Synod with ${environmentName} set before running it.`;
     });
   }
 
@@ -99,7 +114,7 @@
 </script>
 
 <section class="settings-page page-enter">
-  <header class="settings-header"><div><p class="eyebrow">LOCAL ADMINISTRATION</p><h1>Give the council its voices.</h1><p>Connect a provider, register a model, then shape an AI Member with one identity prompt.</p></div></header>
+  <header class="settings-header"><div><p class="eyebrow">LOCAL ADMINISTRATION</p><h1>Give the council its voices.</h1><p>Choose a DeepSeek or MiniMax preset, keep its credential on this machine, register a model, then shape an AI Member with one identity prompt.</p></div></header>
   {#if error}<p class="settings-message settings-message--error">{error}</p>{/if}
   {#if notice}<p class="settings-message">{notice}</p>{/if}
 
@@ -108,11 +123,20 @@
   {:else}
     <div class="settings-grid">
       <section class="settings-card">
-        <header><span>01</span><div><h2>Provider route</h2><p>The secret stays in an environment variable.</p></div></header>
+        <header><span>01</span><div><h2>Provider route</h2><p>Choose a supported preset and keep its key local.</p></div></header>
         <form class="stack-form" on:submit|preventDefault={submitProvider}>
-          <label>Vendor<select bind:value={vendor} on:change={chooseVendor}><option value="deepseek">DeepSeek</option><option value="minimax">MiniMax</option></select></label>
+          <div class="preset-picker">
+            {#each providerPresets as preset}
+              <button class:active={vendor === preset.id} type="button" on:click={() => chooseVendor(preset.id)}><span class={`provider-orb provider-orb--${preset.accent}`}>{preset.name.charAt(0)}</span><strong>{preset.name}</strong><small>{preset.description}</small></button>
+            {/each}
+          </div>
           <label>Display name<input bind:value={providerName} required /></label>
-          <label>Environment variable<input bind:value={environmentName} required pattern="[A-Z0-9_]+" /></label>
+          <label>Credential storage<select bind:value={credentialMode}><option value="api_key">Local API key</option><option value="environment">Environment variable</option></select></label>
+          {#if credentialMode === 'api_key'}
+            <label>API key<input type="password" bind:value={apiKey} required autocomplete="off" placeholder="Stored locally and never returned by the API" /></label>
+          {:else}
+            <label>Environment variable<input bind:value={environmentName} required pattern="[A-Z0-9_]+" /></label>
+          {/if}
           <button class="button button--primary" type="submit" disabled={busy === 'provider'}>{busy === 'provider' ? 'Saving…' : 'Add provider'}</button>
         </form>
         <div class="record-list">{#each data.providers as provider}<div><strong>{provider.name}</strong><small>{provider.base_url}</small><span>{provider.enabled ? 'READY' : 'OFF'}</span></div>{:else}<p>No provider routes yet.</p>{/each}</div>

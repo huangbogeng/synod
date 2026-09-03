@@ -256,6 +256,14 @@ button:disabled { cursor: default; }
 .settings-card h2 { margin: 0; color: var(--ink); font-size: 17px; letter-spacing: -.035em; }
 .settings-card header p { margin: 4px 0 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
 .settings-card .button--primary { width: 100%; margin-top: 3px; }
+.preset-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.preset-picker button { min-width: 0; display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 2px 9px; align-items: center; padding: 10px; border: 1px solid #d7d1c5; border-radius: 9px; color: #6e7174; background: #f3f0e9; text-align: left; cursor: pointer; }
+.preset-picker button.active { border-color: #bd776b; background: #fff4ef; box-shadow: inset 0 0 0 1px rgba(201,86,70,.1); }
+.preset-picker strong { color: #383d43; font-size: 9px; }
+.preset-picker small { grid-column: 2; color: #96958f; font-size: 7px; }
+.provider-orb { grid-row: 1 / 3; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; color: white; font: 700 10px 'DM Mono'; }
+.provider-orb--deepseek { background: #397dcc; }
+.provider-orb--minimax { background: #e66b60; }
 .record-list { display: grid; gap: 6px; margin-top: 22px; padding-top: 17px; border-top: 1px solid #e5e0d6; }
 .record-list > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 3px 8px; padding: 8px; border-radius: 6px; background: #f0ede6; }
 .record-list strong { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }

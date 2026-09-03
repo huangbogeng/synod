@@ -5,6 +5,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
 use crate::domain::{ModelRequest, ModelResponse, ProviderAdapter};
+use crate::persistence::Database;
 
 use super::{ModelGateway, ProviderError, ProviderRoute};
 
@@ -19,10 +20,11 @@ enum Vendor {
 #[derive(Clone)]
 pub struct HttpGateway {
     client: Client,
+    database: Database,
 }
 
 impl HttpGateway {
-    pub fn new() -> Result<Self, ProviderError> {
+    pub fn new(database: Database) -> Result<Self, ProviderError> {
         let client = Client::builder()
             .connect_timeout(Duration::from_secs(15))
             .timeout(Duration::from_secs(270))
@@ -30,7 +32,7 @@ impl HttpGateway {
             .user_agent(concat!("synod/", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|error| ProviderError::Request(error.to_string()))?;
-        Ok(Self { client })
+        Ok(Self { client, database })
     }
 }
 
@@ -41,18 +43,20 @@ impl ModelGateway for HttpGateway {
         request: ModelRequest,
     ) -> impl Future<Output = Result<ModelResponse, ProviderError>> + Send {
         let client = self.client.clone();
-        async move { complete(&client, route, request).await }
+        let database = self.database.clone();
+        async move { complete(&client, &database, route, request).await }
     }
 }
 
 async fn complete(
     client: &Client,
+    database: &Database,
     route: ProviderRoute,
     request: ModelRequest,
 ) -> Result<ModelResponse, ProviderError> {
     validate_provider_endpoint(route.adapter, &route.base_url)?;
     let (endpoint, vendor) = endpoint(&route.base_url)?;
-    let credential = resolve_credential(&route.credential_ref)?;
+    let credential = resolve_credential(database, &route.credential_ref).await?;
     let payload = request_payload(vendor, &route, &request)?;
     let response = client
         .post(endpoint)
@@ -119,23 +123,33 @@ fn endpoint(base_url: &str) -> Result<(Url, Vendor), ProviderError> {
     Ok((url, vendor))
 }
 
-fn resolve_credential(reference: &str) -> Result<String, ProviderError> {
-    let Some(name) = reference.strip_prefix("env://") else {
-        return Err(ProviderError::Credential(
-            "secret:// requires a configured secret backend".to_owned(),
-        ));
-    };
-    if name.is_empty()
-        || !name
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
-    {
-        return Err(ProviderError::Credential(
-            "environment variable reference is invalid".to_owned(),
-        ));
+async fn resolve_credential(database: &Database, reference: &str) -> Result<String, ProviderError> {
+    if let Some(name) = reference.strip_prefix("env://") {
+        if name.is_empty()
+            || !name
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+        {
+            return Err(ProviderError::Credential(
+                "environment variable reference is invalid".to_owned(),
+            ));
+        }
+        return std::env::var(name).map_err(|_| {
+            ProviderError::Credential(format!("environment variable {name} is not set"))
+        });
     }
-    std::env::var(name)
-        .map_err(|_| ProviderError::Credential(format!("environment variable {name} is not set")))
+    if reference.starts_with("secret://") {
+        return database
+            .resolve_provider_secret(reference)
+            .await
+            .map_err(|error| ProviderError::Credential(error.to_string()))?
+            .ok_or_else(|| {
+                ProviderError::Credential("local provider secret is missing".to_owned())
+            });
+    }
+    Err(ProviderError::Credential(
+        "credential reference scheme is unsupported".to_owned(),
+    ))
 }
 
 fn request_payload(

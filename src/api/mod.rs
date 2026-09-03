@@ -455,6 +455,64 @@ mod tests {
         .await;
         assert_eq!(raw_secret.status(), StatusCode::BAD_REQUEST);
 
+        let ambiguous_secret = send(
+            &app,
+            "POST",
+            "/api/v1/providers",
+            &bearer,
+            Some(serde_json::json!({
+                "name": "Ambiguous",
+                "adapter": "openai_compatible",
+                "base_url": "https://api.deepseek.com",
+                "credential_ref": "env://DEEPSEEK_API_KEY",
+                "api_key": "must-not-be-stored"
+            })),
+        )
+        .await;
+        assert_eq!(ambiguous_secret.status(), StatusCode::BAD_REQUEST);
+        let leaked_ambiguous: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM provider_secrets WHERE secret = ?")
+                .bind("must-not-be-stored")
+                .fetch_one(database.pool())
+                .await
+                .unwrap();
+        assert_eq!(leaked_ambiguous, 0);
+
+        let local_secret = send(
+            &app,
+            "POST",
+            "/api/v1/providers",
+            &bearer,
+            Some(serde_json::json!({
+                "name": "MiniMax Local",
+                "adapter": "openai_compatible",
+                "base_url": "https://api.minimaxi.com/v1",
+                "api_key": "local-test-secret"
+            })),
+        )
+        .await;
+        assert_eq!(local_secret.status(), StatusCode::CREATED);
+        let local_secret = json_body(local_secret).await;
+        assert_eq!(local_secret["data"]["credential_configured"], true);
+        assert!(local_secret["data"].get("credential_ref").is_none());
+        assert!(local_secret["data"].get("api_key").is_none());
+        let local_provider_id = local_secret["data"]["id"].as_str().unwrap();
+        let stored_secret: String =
+            sqlx::query_scalar("SELECT secret FROM provider_secrets WHERE provider_id = ?")
+                .bind(local_provider_id)
+                .fetch_one(database.pool())
+                .await
+                .unwrap();
+        assert_eq!(stored_secret, "local-test-secret");
+        assert_eq!(
+            database
+                .resolve_provider_secret(&format!("secret://{local_provider_id}"))
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("local-test-secret")
+        );
+
         let provider = send(
             &app,
             "POST",

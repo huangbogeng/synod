@@ -161,7 +161,8 @@ the merge actor, and applies closing references in one transaction.
 ## Model configuration and execution
 
 `providers` and `models` store non-secret configuration. A Model belongs to one
-Provider. Credentials are referenced by opaque secret identifiers.
+Provider. Credentials are referenced by opaque identifiers; optional local
+secret values live separately in `provider_secrets` and never cross a read API.
 
 One `conversation` is unique for `(topic_item_id, ai_principal_id)`. It owns the
 provider-neutral transcript and current context epoch. Transcript entries are
