@@ -142,6 +142,22 @@ impl Database {
         rows.iter().map(provider_from_row).collect()
     }
 
+    pub(crate) async fn get_provider_connection(
+        &self,
+        actor_id: PrincipalId,
+        provider_id: ProviderId,
+    ) -> Result<(String, String), StoreError> {
+        self.require_server_admin(actor_id).await?;
+        sqlx::query_as(
+            "SELECT base_url, credential_ref FROM providers
+             WHERE id = ? AND enabled = 1",
+        )
+        .bind(provider_id.to_string())
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or(StoreError::NotFound)
+    }
+
     pub(crate) async fn insert_model(
         &self,
         actor_id: PrincipalId,

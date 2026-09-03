@@ -14,6 +14,7 @@ pub enum ApiError {
     Forbidden,
     NotFound,
     Conflict,
+    ProviderUnavailable,
     Internal,
 }
 
@@ -47,6 +48,11 @@ impl IntoResponse for ApiError {
                 StatusCode::CONFLICT,
                 "conflict",
                 "resource already exists or has changed",
+            ),
+            Self::ProviderUnavailable => (
+                StatusCode::BAD_GATEWAY,
+                "provider_unavailable",
+                "provider connection failed; check the local server log",
             ),
             Self::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,

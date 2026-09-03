@@ -5,6 +5,7 @@ use serde::Deserialize;
 
 use crate::{
     domain::{ModelId, ProviderAdapter, ProviderId},
+    providers::HttpGateway,
     services::AdminService,
 };
 
@@ -90,6 +91,30 @@ pub async fn list_providers(
         .list_providers(&principal)
         .await?;
     Ok(Json(Data { data: providers }))
+}
+
+pub async fn discover_models(
+    State(state): State<AppState>,
+    AuthenticatedPrincipal(principal): AuthenticatedPrincipal,
+    axum::extract::Path(provider_id): axum::extract::Path<String>,
+) -> Result<Json<Data<Vec<crate::providers::DiscoveredModel>>>, ApiError> {
+    let provider_id = ProviderId::from_str(&provider_id)
+        .map_err(|_| ApiError::BadRequest("provider identifier is invalid"))?;
+    let (base_url, credential_ref) = AdminService::new(state.database.clone())
+        .provider_connection(&principal, provider_id)
+        .await?;
+    let gateway = HttpGateway::new(state.database).map_err(|error| {
+        tracing::error!(%error, "provider discovery client setup failed");
+        ApiError::Internal
+    })?;
+    let models = gateway
+        .discover_models(&base_url, &credential_ref)
+        .await
+        .map_err(|error| {
+            tracing::warn!(%provider_id, %error, "provider model discovery failed");
+            ApiError::ProviderUnavailable
+        })?;
+    Ok(Json(Data { data: models }))
 }
 
 pub async fn create_model(

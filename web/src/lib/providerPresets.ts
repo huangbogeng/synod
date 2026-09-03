@@ -16,8 +16,8 @@ export const providerPresets: ProviderPreset[] = [
     description: 'Official Chat API',
     baseUrl: 'https://api.deepseek.com',
     environmentName: 'DEEPSEEK_API_KEY',
-    modelName: 'deepseek-chat',
-    modelDisplayName: 'DeepSeek Chat',
+    modelName: 'deepseek-v4-pro',
+    modelDisplayName: 'DeepSeek V4 Pro',
     accent: 'deepseek'
   },
   {

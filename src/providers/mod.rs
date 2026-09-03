@@ -1,10 +1,18 @@
 use std::future::Future;
 
+use serde::Serialize;
+
 use crate::domain::{ModelRequest, ModelResponse, ProviderAdapter};
 
 mod http;
 
 pub use http::{HttpGateway, validate_provider_endpoint};
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct DiscoveredModel {
+    pub id: String,
+    pub owned_by: Option<String>,
+}
 
 #[derive(Clone)]
 pub struct ProviderRoute {

@@ -73,6 +73,17 @@ impl AdminService {
             .map_err(Into::into)
     }
 
+    pub async fn provider_connection(
+        &self,
+        actor: &Principal,
+        provider_id: ProviderId,
+    ) -> Result<(String, String), ServiceError> {
+        self.database
+            .get_provider_connection(actor.id, provider_id)
+            .await
+            .map_err(Into::into)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn create_model(
         &self,

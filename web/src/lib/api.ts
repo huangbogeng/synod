@@ -4,6 +4,7 @@ import type {
   Comment,
   CommentKind,
   Creation,
+  DiscoveredModel,
   Envelope,
   Issue,
   IssueType,
@@ -116,6 +117,10 @@ export function createProvider(
   }
 ): Promise<Provider> {
   return request('/api/v1/providers', token, 'POST', input);
+}
+
+export function discoverProviderModels(token: string, providerId: string): Promise<DiscoveredModel[]> {
+  return request(`/api/v1/providers/${providerId}/models`, token);
 }
 
 export function createModel(

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { createAiMember, createModel, createProvider, loadAdminWorkspace } from '../lib/api';
+  import { createAiMember, createModel, createProvider, discoverProviderModels, loadAdminWorkspace } from '../lib/api';
   import { providerPresets } from '../lib/providerPresets';
-  import type { AdminWorkspace } from '../lib/types';
+  import type { AdminWorkspace, DiscoveredModel, Provider } from '../lib/types';
 
   export let token: string;
 
@@ -10,6 +10,8 @@
   let busy = '';
   let error = '';
   let notice = '';
+  let discovering = '';
+  let discovered: Record<string, DiscoveredModel[]> = {};
 
   let vendor: 'deepseek' | 'minimax' = 'deepseek';
   let providerName = 'DeepSeek';
@@ -83,6 +85,28 @@
     });
   }
 
+  async function discoverModels(provider: Provider) {
+    discovering = provider.id;
+    error = '';
+    notice = '';
+    try {
+      const models = await discoverProviderModels(token, provider.id);
+      discovered = { ...discovered, [provider.id]: models };
+      chooseModel(provider.id, models[0].id);
+      notice = `${provider.name} connected. ${models.length} model${models.length === 1 ? '' : 's'} discovered.`;
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : 'Provider connection failed.';
+    } finally {
+      discovering = '';
+    }
+  }
+
+  function chooseModel(providerId: string, discoveredName: string) {
+    modelProviderId = providerId;
+    modelName = discoveredName;
+    modelDisplayName = discoveredName;
+  }
+
   async function submitMember() {
     await perform('member', async () => {
       await createAiMember(token, {
@@ -139,7 +163,14 @@
           {/if}
           <button class="button button--primary" type="submit" disabled={busy === 'provider'}>{busy === 'provider' ? 'Saving…' : 'Add provider'}</button>
         </form>
-        <div class="record-list">{#each data.providers as provider}<div><strong>{provider.name}</strong><small>{provider.base_url}</small><span>{provider.enabled ? 'READY' : 'OFF'}</span></div>{:else}<p>No provider routes yet.</p>{/each}</div>
+        <div class="record-list">
+          {#each data.providers as provider}
+            <div class="provider-record"><div><strong>{provider.name}</strong><small>{provider.base_url}</small></div><button type="button" disabled={discovering === provider.id} on:click={() => discoverModels(provider)}>{discovering === provider.id ? 'TESTING…' : 'TEST + MODELS'}</button></div>
+            {#if discovered[provider.id]}
+              <div class="model-results">{#each discovered[provider.id] as found}<button type="button" class:active={modelProviderId === provider.id && modelName === found.id} on:click={() => chooseModel(provider.id, found.id)}>{found.id}</button>{/each}</div>
+            {/if}
+          {:else}<p>No provider routes yet.</p>{/each}
+        </div>
       </section>
 
       <section class="settings-card">

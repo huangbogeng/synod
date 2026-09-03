@@ -7,7 +7,7 @@ use serde_json::{Map, Value, json};
 use crate::domain::{ModelRequest, ModelResponse, ProviderAdapter};
 use crate::persistence::Database;
 
-use super::{ModelGateway, ProviderError, ProviderRoute};
+use super::{DiscoveredModel, ModelGateway, ProviderError, ProviderRoute};
 
 const MAX_RESPONSE_BYTES: u64 = 2 * 1024 * 1024;
 
@@ -33,6 +33,29 @@ impl HttpGateway {
             .build()
             .map_err(|error| ProviderError::Request(error.to_string()))?;
         Ok(Self { client, database })
+    }
+
+    pub async fn discover_models(
+        &self,
+        base_url: &str,
+        credential_ref: &str,
+    ) -> Result<Vec<DiscoveredModel>, ProviderError> {
+        let endpoint = models_endpoint(base_url)?;
+        let credential = resolve_credential(&self.database, credential_ref).await?;
+        let response = self
+            .client
+            .get(endpoint)
+            .bearer_auth(credential)
+            .timeout(Duration::from_secs(15))
+            .send()
+            .await
+            .map_err(|error| ProviderError::Request(error.to_string()))?;
+        let status = response.status();
+        let bytes = read_bounded(response).await?;
+        if !status.is_success() {
+            return Err(http_error(status, &bytes));
+        }
+        decode_models(&bytes)
     }
 }
 
@@ -123,6 +146,17 @@ fn endpoint(base_url: &str) -> Result<(Url, Vendor), ProviderError> {
     Ok((url, vendor))
 }
 
+fn models_endpoint(base_url: &str) -> Result<Url, ProviderError> {
+    let (mut url, vendor) = endpoint(base_url)?;
+    let path = match vendor {
+        Vendor::DeepSeek if url.path().starts_with("/v1/") => "/v1/models",
+        Vendor::DeepSeek => "/models",
+        Vendor::MiniMax => "/v1/models",
+    };
+    url.set_path(path);
+    Ok(url)
+}
+
 async fn resolve_credential(database: &Database, reference: &str) -> Result<String, ProviderError> {
     if let Some(name) = reference.strip_prefix("env://") {
         if name.is_empty()
@@ -203,8 +237,16 @@ fn request_payload(
     Ok(Value::Object(payload))
 }
 
-async fn parse_response(mut response: reqwest::Response) -> Result<ModelResponse, ProviderError> {
+async fn parse_response(response: reqwest::Response) -> Result<ModelResponse, ProviderError> {
     let status = response.status();
+    let bytes = read_bounded(response).await?;
+    if !status.is_success() {
+        return Err(http_error(status, &bytes));
+    }
+    decode_success(&bytes)
+}
+
+async fn read_bounded(mut response: reqwest::Response) -> Result<Vec<u8>, ProviderError> {
     if response
         .content_length()
         .is_some_and(|size| size > MAX_RESPONSE_BYTES)
@@ -227,10 +269,41 @@ async fn parse_response(mut response: reqwest::Response) -> Result<ModelResponse
         }
         bytes.extend_from_slice(&chunk);
     }
-    if !status.is_success() {
-        return Err(http_error(status, &bytes));
+    Ok(bytes)
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelsResponse {
+    data: Vec<ModelEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelEntry {
+    id: String,
+    owned_by: Option<String>,
+}
+
+fn decode_models(bytes: &[u8]) -> Result<Vec<DiscoveredModel>, ProviderError> {
+    let response: ModelsResponse = serde_json::from_slice(bytes)
+        .map_err(|error| ProviderError::InvalidResponse(error.to_string()))?;
+    let mut models = response
+        .data
+        .into_iter()
+        .take(1_000)
+        .filter(|model| !model.id.trim().is_empty() && model.id.chars().count() <= 200)
+        .map(|model| DiscoveredModel {
+            id: model.id,
+            owned_by: model.owned_by,
+        })
+        .collect::<Vec<_>>();
+    models.sort_by(|left, right| left.id.cmp(&right.id));
+    models.dedup_by(|left, right| left.id == right.id);
+    if models.is_empty() {
+        return Err(ProviderError::InvalidResponse(
+            "provider returned no usable models".to_owned(),
+        ));
     }
-    decode_success(&bytes)
+    Ok(models)
 }
 
 fn decode_success(bytes: &[u8]) -> Result<ModelResponse, ProviderError> {
@@ -340,6 +413,24 @@ mod tests {
             )
             .is_err()
         );
+        assert_eq!(
+            models_endpoint("https://api.deepseek.com")
+                .unwrap()
+                .as_str(),
+            "https://api.deepseek.com/models"
+        );
+        assert_eq!(
+            models_endpoint("https://api.deepseek.com/v1")
+                .unwrap()
+                .as_str(),
+            "https://api.deepseek.com/v1/models"
+        );
+        assert_eq!(
+            models_endpoint("https://api.minimaxi.com/v1")
+                .unwrap()
+                .as_str(),
+            "https://api.minimaxi.com/v1/models"
+        );
     }
 
     #[test]
@@ -385,6 +476,32 @@ mod tests {
         assert_eq!(response.text, "Reviewed.");
         assert_eq!(response.usage["prompt_tokens"], 10);
         assert_eq!(response.provider_request_id.as_deref(), Some("response-1"));
+    }
+
+    #[test]
+    fn model_discovery_is_sorted_deduplicated_and_bounded() {
+        let models = decode_models(
+            serde_json::to_vec(&json!({
+                "object": "list",
+                "data": [
+                    {"id": "model-b", "owned_by": "vendor"},
+                    {"id": "model-a", "owned_by": "vendor"},
+                    {"id": "model-b", "owned_by": "vendor"},
+                    {"id": "", "owned_by": "vendor"}
+                ]
+            }))
+            .unwrap()
+            .as_slice(),
+        )
+        .unwrap();
+        assert_eq!(
+            models
+                .iter()
+                .map(|model| model.id.as_str())
+                .collect::<Vec<_>>(),
+            ["model-a", "model-b"]
+        );
+        assert!(decode_models(br#"{"data":[]}"#).is_err());
     }
 
     #[test]

@@ -115,7 +115,9 @@ Member setup, Topic creation, Topic seats and one-member Team setup, Issue
 creation, Issue timelines, Comments, mentions, Run state refresh, and final AI
 Comments. The preset-first Provider form accepts either a local API key or an
 `env://` reference. Local keys are stored in the permission-restricted SQLite
-database and are never returned by the HTTP API.
+database and are never returned by the HTTP API. Saved Providers can be tested
+against their official model-list endpoint and a discovered model can be copied
+directly into the Model form.
 
 ## Run the foundation
 

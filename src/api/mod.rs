@@ -52,6 +52,10 @@ pub fn router(state: AppState) -> Router {
             get(admin::list_providers).post(admin::create_provider),
         )
         .route(
+            "/api/v1/providers/{provider_id}/models",
+            get(admin::discover_models),
+        )
+        .route(
             "/api/v1/models",
             get(admin::list_models).post(admin::create_model),
         )
@@ -439,6 +443,28 @@ mod tests {
         let app = router(AppState {
             database: database.clone(),
         });
+
+        let malformed_discovery = send(
+            &app,
+            "GET",
+            "/api/v1/providers/not-an-id/models",
+            &bearer,
+            None,
+        )
+        .await;
+        assert_eq!(malformed_discovery.status(), StatusCode::BAD_REQUEST);
+        let missing_discovery = send(
+            &app,
+            "GET",
+            &format!(
+                "/api/v1/providers/{}/models",
+                crate::domain::ProviderId::new()
+            ),
+            &bearer,
+            None,
+        )
+        .await;
+        assert_eq!(missing_discovery.status(), StatusCode::NOT_FOUND);
 
         let raw_secret = send(
             &app,

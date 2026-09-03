@@ -162,6 +162,7 @@ snapshot is immutable.
 ```text
 GET    /providers
 POST   /providers
+GET    /providers/{provider_id}/models
 PATCH  /providers/{provider_id}
 GET    /models
 POST   /models
@@ -182,6 +183,8 @@ AI Members. Only the bootstrap Human may use these server-wide endpoints.
 Provider creation accepts exactly one of a write-only `api_key` or an `env://`
 credential reference. A local API key is stored under an internal `secret://`
 reference. Responses expose only `credential_configured`, never either input.
+The Provider-scoped models endpoint uses that server-side credential to test the
+official connection and returns a bounded, sorted list of model identifiers.
 
 Topic Human writers may list or add Topic Members, create/list Teams, and add a
 Topic Member to a Team. Team nesting and Caller/System membership are rejected.

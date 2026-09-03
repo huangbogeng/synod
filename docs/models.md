@@ -28,6 +28,13 @@ authentication, so they share a small wire adapter rather than two vendor SDKs.
 Vendor differences remain explicit in endpoint validation, allowed parameters,
 and response error handling.
 
+The Web UI can test a saved Provider and discover its models without returning
+the credential to the browser. Synod calls the vendor's authenticated model-list
+endpoint with a 15-second timeout, bounds the response to 2 MiB and 1,000 usable
+model identifiers, then sorts and deduplicates it. The selected identifier is
+copied into the explicit Model form; discovery never creates or silently
+switches a Model.
+
 ### DeepSeek
 
 ```json
@@ -52,6 +59,7 @@ response_format, stop
 ```
 
 Sources: [DeepSeek Chat Completions API](https://api-docs.deepseek.com/api/create-chat-completion/),
+[DeepSeek List Models](https://api-docs.deepseek.com/api/list-models),
 [official curl example](https://api-docs.deepseek.com/api_samples/chat_curl), and
 [error codes](https://api-docs.deepseek.com/quick_start/error_codes/).
 
@@ -85,6 +93,7 @@ MiniMax may return HTTP success with a non-zero `base_resp.status_code`; Synod
 treats that as a failed provider attempt.
 
 Sources: [MiniMax OpenAI-compatible Chat Completions](https://platform.minimax.io/docs/api-reference/text-chat-openai),
+[MiniMax List Models](https://platform.minimax.io/docs/api-reference/models/openai/list-models),
 [model invocation guide](https://platform.minimax.io/docs/guides/text-generation),
 and [error codes](https://platform.minimax.io/docs/api-reference/errorcode).
 

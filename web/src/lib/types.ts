@@ -63,6 +63,11 @@ export interface Provider {
   enabled: boolean;
 }
 
+export interface DiscoveredModel {
+  id: string;
+  owned_by: string | null;
+}
+
 export interface IssueType {
   key: string;
   display_name: string;
