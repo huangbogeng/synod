@@ -584,7 +584,8 @@ mod tests {
                 "handle": "architect",
                 "display_name": "Architect",
                 "identity_prompt": "Review system boundaries.",
-                "default_model_id": model_id
+                "default_model_id": model_id,
+                "execution_defaults": {"temperature": 0.2}
             })),
         )
         .await;
@@ -596,6 +597,7 @@ mod tests {
             ai_member["data"]["identity_prompt"],
             "Review system boundaries."
         );
+        assert_eq!(ai_member["data"]["execution_defaults"]["temperature"], 0.2);
 
         let reviewer = send(
             &app,

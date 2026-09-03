@@ -132,10 +132,12 @@ impl AdminService {
         display_name: String,
         identity_prompt: String,
         default_model_id: ModelId,
+        execution_defaults: serde_json::Value,
     ) -> Result<AiMember, ServiceError> {
         validate_handle(&handle)?;
         validate_text(&display_name, 100, "AI Member display name is invalid")?;
         validate_text(&identity_prompt, 100_000, "identity Prompt is invalid")?;
+        validate_execution_defaults(&execution_defaults)?;
         self.database
             .insert_ai_member(
                 actor.id,
@@ -143,11 +145,13 @@ impl AdminService {
                 display_name.trim(),
                 &identity_prompt,
                 default_model_id,
+                &execution_defaults,
             )
             .await
             .map_err(Into::into)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_ai_member_for_model(
         &self,
         actor: &Principal,
@@ -156,11 +160,13 @@ impl AdminService {
         identity_prompt: String,
         provider_id: ProviderId,
         model_name: String,
+        execution_defaults: serde_json::Value,
     ) -> Result<AiMember, ServiceError> {
         validate_handle(&handle)?;
         validate_text(&display_name, 100, "AI Member display name is invalid")?;
         validate_text(&identity_prompt, 100_000, "identity Prompt is invalid")?;
         validate_text(&model_name, 200, "model name is invalid")?;
+        validate_execution_defaults(&execution_defaults)?;
         self.database
             .insert_ai_member_for_model(
                 actor.id,
@@ -169,6 +175,7 @@ impl AdminService {
                 &identity_prompt,
                 provider_id,
                 model_name.trim(),
+                &execution_defaults,
             )
             .await
             .map_err(Into::into)
@@ -179,6 +186,16 @@ impl AdminService {
             .list_ai_members(actor.id)
             .await
             .map_err(Into::into)
+    }
+}
+
+fn validate_execution_defaults(value: &serde_json::Value) -> Result<(), ServiceError> {
+    if !value.is_object() || value.to_string().len() > 20_000 {
+        Err(ServiceError::InvalidReference(
+            "AI Member execution defaults must be an object no larger than 20000 bytes",
+        ))
+    } else {
+        Ok(())
     }
 }
 

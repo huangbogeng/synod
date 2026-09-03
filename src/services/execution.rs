@@ -118,6 +118,9 @@ mod tests {
             let (route, request) = seen.as_ref().unwrap();
             assert_eq!(route.adapter, ProviderAdapter::OpenaiCompatible);
             assert_eq!(route.credential_ref, "env://TEST_API_KEY");
+            assert_eq!(route.defaults["temperature"], 0.7);
+            assert_eq!(route.defaults["top_p"], 0.8);
+            assert_eq!(route.defaults["max_tokens"], 512);
             assert_eq!(request.context.issue.id, issue_id);
             assert_eq!(request.context.trigger.source_type, "issue");
             assert!(request.system_prompt.contains("Review architecture."));
@@ -126,6 +129,7 @@ mod tests {
         let run = database.get_run_for(alice.id, run_id).await.unwrap();
         assert_eq!(run.status, RunStatus::Completed);
         assert_eq!(run.conclusion, Some(RunConclusion::Success));
+        assert_eq!(run.model_parameters["temperature"], 0.7);
         assert!(run.context_snapshot_id.is_some());
         let snapshot = database
             .get_context_snapshot_for(alice.id, run.context_snapshot_id.unwrap())
@@ -288,7 +292,7 @@ mod tests {
                 "Test Model".to_owned(),
                 serde_json::json!({}),
                 serde_json::json!({"context_tokens": 32000}),
-                serde_json::json!({"temperature": 0}),
+                serde_json::json!({"temperature": 0.1, "max_tokens": 512}),
             )
             .await
             .unwrap();
@@ -299,6 +303,7 @@ mod tests {
                 "Architect".to_owned(),
                 "Review architecture.".to_owned(),
                 model.id,
+                serde_json::json!({"temperature": 0.7, "top_p": 0.8}),
             )
             .await
             .unwrap();

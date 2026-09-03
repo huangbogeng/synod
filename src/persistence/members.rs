@@ -227,6 +227,7 @@ impl Database {
         display_name: &str,
         identity_prompt: &str,
         default_model_id: ModelId,
+        execution_defaults: &serde_json::Value,
     ) -> Result<AiMember, StoreError> {
         self.require_server_admin(actor_id).await?;
         let mut transaction = self.pool.begin().await?;
@@ -245,12 +246,14 @@ impl Database {
             display_name,
             identity_prompt,
             default_model_id,
+            execution_defaults,
         )
         .await?;
         transaction.commit().await?;
         Ok(member)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn insert_ai_member_for_model(
         &self,
         actor_id: PrincipalId,
@@ -259,6 +262,7 @@ impl Database {
         identity_prompt: &str,
         provider_id: ProviderId,
         model_name: &str,
+        execution_defaults: &serde_json::Value,
     ) -> Result<AiMember, StoreError> {
         self.require_server_admin(actor_id).await?;
         let mut transaction = self.pool.begin().await?;
@@ -309,6 +313,7 @@ impl Database {
             display_name,
             identity_prompt,
             model_id,
+            execution_defaults,
         )
         .await?;
         transaction.commit().await?;
@@ -323,7 +328,8 @@ impl Database {
         let rows = sqlx::query(
             "SELECT principal.id, principal.kind, principal.handle, principal.display_name,
                     prompt.prompt AS identity_prompt,
-                    profile.identity_prompt_version, profile.default_model_id
+                    profile.identity_prompt_version, profile.default_model_id,
+                    profile.execution_defaults_json
              FROM principals AS principal
              JOIN ai_profiles AS profile ON profile.principal_id = principal.id
              JOIN ai_prompt_versions AS prompt
@@ -549,13 +555,14 @@ impl Database {
     }
 }
 
-async fn insert_ai_member_in_transaction(
+pub(super) async fn insert_ai_member_in_transaction(
     transaction: &mut Transaction<'_, Sqlite>,
     actor_id: PrincipalId,
     handle: &str,
     display_name: &str,
     identity_prompt: &str,
     default_model_id: ModelId,
+    execution_defaults: &serde_json::Value,
 ) -> Result<AiMember, StoreError> {
     let id = PrincipalId::new();
     let team_collision: i64 =
@@ -577,11 +584,13 @@ async fn insert_ai_member_in_transaction(
     .await
     .map_err(super::store::map_constraint)?;
     sqlx::query(
-        "INSERT INTO ai_profiles(principal_id, identity_prompt_version, default_model_id)
-         VALUES (?, 1, ?)",
+        "INSERT INTO ai_profiles(
+            principal_id, identity_prompt_version, default_model_id, execution_defaults_json
+         ) VALUES (?, 1, ?, ?)",
     )
     .bind(id.to_string())
     .bind(default_model_id.to_string())
+    .bind(execution_defaults.to_string())
     .execute(&mut **transaction)
     .await?;
     sqlx::query(
@@ -604,6 +613,7 @@ async fn insert_ai_member_in_transaction(
         identity_prompt: identity_prompt.to_owned(),
         identity_prompt_version: 1,
         default_model_id,
+        execution_defaults: execution_defaults.clone(),
     })
 }
 
@@ -704,12 +714,13 @@ fn model_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Model, StoreError> {
     })
 }
 
-fn ai_member_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<AiMember, StoreError> {
+pub(super) fn ai_member_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<AiMember, StoreError> {
     Ok(AiMember {
         principal: principal_from_row(row)?,
         identity_prompt: row.try_get("identity_prompt")?,
         identity_prompt_version: row.try_get("identity_prompt_version")?,
         default_model_id: parse_id(row, "default_model_id", "model id")?,
+        execution_defaults: parse_json(row, "execution_defaults_json")?,
     })
 }
 

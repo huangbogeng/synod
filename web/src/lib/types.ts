@@ -45,6 +45,7 @@ export interface AiMember extends Principal {
   identity_prompt: string;
   identity_prompt_version: number;
   default_model_id: string;
+  execution_defaults: Record<string, unknown>;
 }
 
 export interface Model {
@@ -52,6 +53,7 @@ export interface Model {
   provider_id: string;
   model_name: string;
   display_name: string;
+  defaults: Record<string, unknown>;
   enabled: boolean;
 }
 
@@ -102,6 +104,7 @@ export interface Run {
   item_id: string;
   ai_member_id: string;
   model_id: string;
+  model_parameters: Record<string, unknown>;
   status: 'queued' | 'in_progress' | 'completed';
   conclusion: 'success' | 'failure' | 'cancelled' | 'timed_out' | 'skipped' | 'neutral' | null;
 }

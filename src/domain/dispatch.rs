@@ -70,6 +70,7 @@ pub struct Run {
     pub conversation_id: ConversationId,
     pub identity_prompt_version: i64,
     pub model_id: ModelId,
+    pub model_parameters: serde_json::Value,
     pub context_snapshot_id: Option<ContextSnapshotId>,
     pub status: RunStatus,
     pub conclusion: Option<RunConclusion>,

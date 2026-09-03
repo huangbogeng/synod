@@ -193,7 +193,8 @@ impl Database {
         let row = sqlx::query(
             "SELECT run.id, run.dispatch_id, run.topic_id, run.item_id, run.ai_principal_id,
                     run.conversation_id, run.identity_prompt_version, run.model_id,
-                    run.context_snapshot_id, run.status, run.conclusion, run.retry_of_run_id
+                    run.model_parameters_json, run.context_snapshot_id, run.status,
+                    run.conclusion, run.retry_of_run_id
              FROM runs AS run
              JOIN topic_memberships AS membership ON membership.topic_id = run.topic_id
              WHERE run.id = ? AND membership.principal_id = ?",
@@ -214,7 +215,8 @@ impl Database {
         let rows = sqlx::query(
             "SELECT run.id, run.dispatch_id, run.topic_id, run.item_id, run.ai_principal_id,
                     run.conversation_id, run.identity_prompt_version, run.model_id,
-                    run.context_snapshot_id, run.status, run.conclusion, run.retry_of_run_id
+                    run.model_parameters_json, run.context_snapshot_id, run.status,
+                    run.conclusion, run.retry_of_run_id
              FROM runs AS run
              JOIN topic_memberships AS membership ON membership.topic_id = run.topic_id
              WHERE run.topic_id = ? AND membership.principal_id = ?
@@ -421,7 +423,8 @@ async fn queue_ai_run(
     ai_principal_id: PrincipalId,
 ) -> Result<Option<RunId>, StoreError> {
     let profile = sqlx::query(
-        "SELECT profile.identity_prompt_version, profile.default_model_id
+        "SELECT profile.identity_prompt_version, profile.default_model_id,
+                profile.execution_defaults_json, model.defaults_json AS model_defaults_json
          FROM ai_profiles AS profile
          JOIN models AS model ON model.id = profile.default_model_id
          JOIN providers AS provider ON provider.id = model.provider_id
@@ -435,6 +438,9 @@ async fn queue_ai_run(
     };
     let identity_prompt_version: i64 = profile.try_get("identity_prompt_version")?;
     let model_id: String = profile.try_get("default_model_id")?;
+    let model_defaults: String = profile.try_get("model_defaults_json")?;
+    let member_defaults: String = profile.try_get("execution_defaults_json")?;
+    let model_parameters = merge_model_parameters(&model_defaults, &member_defaults)?;
 
     let proposed_conversation_id = ConversationId::new().to_string();
     sqlx::query(
@@ -463,8 +469,8 @@ async fn queue_ai_run(
     sqlx::query(
         "INSERT INTO runs(
             id, dispatch_id, topic_id, item_id, ai_principal_id, conversation_id,
-            identity_prompt_version, model_id, status, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued',
+            identity_prompt_version, model_id, model_parameters_json, status, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued',
             strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
     )
     .bind(run_id.to_string())
@@ -475,6 +481,7 @@ async fn queue_ai_run(
     .bind(&conversation_id)
     .bind(identity_prompt_version)
     .bind(model_id)
+    .bind(model_parameters)
     .execute(&mut **transaction)
     .await?;
 
@@ -564,6 +571,7 @@ fn run_from_row(row: &SqliteRow) -> Result<Run, StoreError> {
         conversation_id: parse_id(row, "conversation_id", "conversation id")?,
         identity_prompt_version: row.try_get("identity_prompt_version")?,
         model_id: parse_id(row, "model_id", "model id")?,
+        model_parameters: parse_json_value(row, "model_parameters_json", "model parameters")?,
         context_snapshot_id: parse_optional_id(row, "context_snapshot_id", "context snapshot id")?,
         status: match status.as_str() {
             "queued" => RunStatus::Queued,
@@ -577,6 +585,35 @@ fn run_from_row(row: &SqliteRow) -> Result<Run, StoreError> {
             .transpose()?,
         retry_of_run_id: parse_optional_id(row, "retry_of_run_id", "retry run id")?,
     })
+}
+
+fn merge_model_parameters(
+    model_defaults: &str,
+    member_defaults: &str,
+) -> Result<String, StoreError> {
+    let mut merged: serde_json::Value = serde_json::from_str(model_defaults)
+        .map_err(|_| StoreError::CorruptData("model defaults"))?;
+    let member: serde_json::Value = serde_json::from_str(member_defaults)
+        .map_err(|_| StoreError::CorruptData("AI Member execution defaults"))?;
+    let merged = merged
+        .as_object_mut()
+        .ok_or(StoreError::CorruptData("model defaults"))?;
+    let member = member
+        .as_object()
+        .ok_or(StoreError::CorruptData("AI Member execution defaults"))?;
+    for (key, value) in member {
+        merged.insert(key.clone(), value.clone());
+    }
+    Ok(serde_json::Value::Object(merged.clone()).to_string())
+}
+
+fn parse_json_value(
+    row: &SqliteRow,
+    column: &str,
+    label: &'static str,
+) -> Result<serde_json::Value, StoreError> {
+    let raw: String = row.try_get(column)?;
+    serde_json::from_str(&raw).map_err(|_| StoreError::CorruptData(label))
 }
 
 fn notification_from_row(row: &SqliteRow) -> Result<Notification, StoreError> {
@@ -730,6 +767,7 @@ mod tests {
                 "Architect".to_owned(),
                 "Review architecture.".to_owned(),
                 model.id,
+                serde_json::json!({}),
             )
             .await
             .unwrap();

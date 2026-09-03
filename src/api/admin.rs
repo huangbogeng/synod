@@ -45,6 +45,8 @@ pub struct CreateAiMemberRequest {
     default_model_id: Option<String>,
     provider_id: Option<String>,
     model_name: Option<String>,
+    #[serde(default = "empty_object")]
+    execution_defaults: serde_json::Value,
 }
 
 pub async fn create_provider(
@@ -171,6 +173,7 @@ pub async fn create_ai_member(
                     request.display_name,
                     request.identity_prompt,
                     model_id,
+                    request.execution_defaults,
                 )
                 .await?
         }
@@ -185,6 +188,7 @@ pub async fn create_ai_member(
                     request.identity_prompt,
                     provider_id,
                     model_name,
+                    request.execution_defaults,
                 )
                 .await?
         }

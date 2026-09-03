@@ -34,6 +34,7 @@
   let memberHandle = '';
   let memberDisplayName = '';
   let memberPrompt = '';
+  let memberTemperature = 0.6;
 
   $: selectedProvider = data.providers.find((provider) => provider.id === modelProviderId) ?? null;
   $: modelChoices = modelProviderId ? (discovered[modelProviderId] ?? []) : [];
@@ -67,6 +68,7 @@
     memberHandle = '';
     memberDisplayName = '';
     memberPrompt = '';
+    memberTemperature = 0.6;
     modelProviderId = data.providers[0]?.id ?? '';
     modelName = '';
     memberDialog = true;
@@ -150,7 +152,8 @@
         display_name: memberDisplayName,
         identity_prompt: memberPrompt,
         provider_id: modelProviderId,
-        model_name: modelName
+        model_name: modelName,
+        execution_defaults: { temperature: memberTemperature }
       });
     });
     if (!saved) return;
@@ -203,6 +206,11 @@
   function memberHue(handle: string): number {
     return [...handle].reduce((value, character) => value + character.charCodeAt(0) * 17, 0) % 360;
   }
+
+  function memberTemperatureFor(member: AiMember): string {
+    const value = member.execution_defaults.temperature;
+    return typeof value === 'number' ? value.toFixed(1) : 'default';
+  }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -240,7 +248,7 @@
         {#each data.aiMembers as member}
           <article class="member-card" style={`--member-hue:${memberHue(member.handle)}deg`}>
             <div class="member-card-pattern"></div><div class="member-sigil"><span>{initials(member.display_name)}</span><i></i></div>
-            <div class="member-card-copy"><p class="member-label">AI MEMBER · PROMPT V{member.identity_prompt_version}</p><h3>{member.display_name}</h3><strong>@{member.handle}</strong><div class="member-mandate">{member.identity_prompt}</div></div>
+            <div class="member-card-copy"><p class="member-label">AI MEMBER · PROMPT V{member.identity_prompt_version} · TEMP {memberTemperatureFor(member)}</p><h3>{member.display_name}</h3><strong>@{member.handle}</strong><div class="member-mandate">{member.identity_prompt}</div></div>
             <footer><span>{providerFor(member)?.name ?? 'Provider unavailable'}</span><i>→</i><span>{modelFor(member)?.model_name ?? 'Model unavailable'}</span></footer>
           </article>
         {/each}
@@ -284,10 +292,11 @@
           <div class="field-pair"><label>Display name<input bind:value={memberDisplayName} required placeholder="Architect" /></label><label>Handle<input bind:value={memberHandle} required placeholder="architect" pattern="[a-z0-9][a-z0-9-]*" /></label></div>
           <fieldset class="mandate-field"><legend>Mandate</legend><div class="template-picker">{#each memberTemplates as template}<button class:active={memberPrompt === template.prompt} type="button" on:click={() => applyTemplate(template.prompt)}>{template.name}</button>{/each}</div><textarea bind:value={memberPrompt} required rows="7" placeholder="Describe the point of view this Member should consistently bring to the council."></textarea></fieldset>
           <div class="field-pair"><label>Provider<select bind:value={modelProviderId} on:change={chooseMemberProvider} required>{#each data.providers as provider}<option value={provider.id}>{provider.name}</option>{/each}</select></label><label>Model<select bind:value={modelName} required disabled={discovering === modelProviderId || !modelChoices.length}><option value="" disabled>{discovering === modelProviderId ? 'Loading models…' : modelChoices.length ? 'Select a model' : 'No models available'}</option>{#each modelChoices as found}<option value={found.id}>{found.id}</option>{/each}</select></label></div>
+          <label>Temperature · {memberTemperature.toFixed(1)}<input bind:value={memberTemperature} type="range" min="0" max="1" step="0.1" /></label>
           {#if selectedProvider}<div class="member-model-tools"><button type="button" disabled={discovering === selectedProvider.id} on:click={() => discoverModels(selectedProvider)}>{discovering === selectedProvider.id ? 'Requesting model list…' : 'Refresh model list'}</button>{#if discoveryErrors[selectedProvider.id]}<small>{discoveryErrors[selectedProvider.id]}</small>{:else if modelChoices.length}<small>{modelChoices.length} models available</small>{/if}</div>{/if}
           <div class="form-actions"><button class="button" type="button" on:click={closeDialogs}>Cancel</button><button class="button button--primary" type="submit" disabled={!modelName || discovering === modelProviderId || busy === 'member'}>{busy === 'member' ? 'Inviting…' : 'Invite Member'}</button></div>
         </form>
-        <aside class="member-preview"><p class="section-kicker">LIVE PREVIEW</p><article class="member-card member-card--preview" style={`--member-hue:${memberHue(memberHandle || 'new-member')}deg`}><div class="member-card-pattern"></div><div class="member-sigil"><span>{initials(memberDisplayName || 'New')}</span><i></i></div><div class="member-card-copy"><p class="member-label">AI MEMBER · NEW VOICE</p><h3>{memberDisplayName || 'Unnamed Member'}</h3><strong>@{memberHandle || 'handle'}</strong><div class="member-mandate">{memberPrompt || 'Their mandate will appear here as you shape this voice.'}</div></div><footer><span>{selectedProvider?.name ?? 'Choose Provider'}</span><i>→</i><span>{modelName || 'Choose model'}</span></footer></article></aside>
+        <aside class="member-preview"><p class="section-kicker">LIVE PREVIEW</p><article class="member-card member-card--preview" style={`--member-hue:${memberHue(memberHandle || 'new-member')}deg`}><div class="member-card-pattern"></div><div class="member-sigil"><span>{initials(memberDisplayName || 'New')}</span><i></i></div><div class="member-card-copy"><p class="member-label">AI MEMBER · NEW VOICE · TEMP {memberTemperature.toFixed(1)}</p><h3>{memberDisplayName || 'Unnamed Member'}</h3><strong>@{memberHandle || 'handle'}</strong><div class="member-mandate">{memberPrompt || 'Their mandate will appear here as you shape this voice.'}</div></div><footer><span>{selectedProvider?.name ?? 'Choose Provider'}</span><i>→</i><span>{modelName || 'Choose model'}</span></footer></article></aside>
       </div>
     {/if}
   </div></div>

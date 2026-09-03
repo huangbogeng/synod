@@ -179,6 +179,27 @@ starting the worker loop:
 cargo run -- worker --once
 ```
 
+Local maintenance and reproducible configuration use the same service and
+validation layer as the application instead of ad-hoc SQL. Stop the server
+before running these commands against its database:
+
+```bash
+cargo run -- config clear-topics --confirm
+cargo run -- config set-member \
+  --handle developer-precise \
+  --display-name "Developer · Precise" \
+  --provider MiniMax \
+  --model MiniMax-M3 \
+  --prompt-file examples/prompts/developer.md \
+  --temperature 0.2
+cargo run -- config list-members
+```
+
+Configuration commands emit JSON by default for reliable use from Codex and
+other local automation. `clear-topics` is a read-only preview unless explicit
+`--confirm` is present, and it does not remove Providers, credentials, Human
+identities, or AI Members.
+
 Validate the repository with:
 
 ```bash

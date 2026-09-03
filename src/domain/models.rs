@@ -72,6 +72,7 @@ pub struct AiMember {
     pub identity_prompt: String,
     pub identity_prompt_version: i64,
     pub default_model_id: ModelId,
+    pub execution_defaults: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

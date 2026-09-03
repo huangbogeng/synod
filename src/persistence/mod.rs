@@ -8,6 +8,7 @@ use sqlx::{
 mod dispatches;
 mod execution;
 mod issues;
+mod maintenance;
 mod members;
 mod store;
 

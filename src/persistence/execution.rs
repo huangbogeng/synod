@@ -359,7 +359,7 @@ async fn load_run_configuration(
     let row = sqlx::query(
         "SELECT run.id, run.topic_id, run.item_id, run.conversation_id,
                 run.ai_principal_id, run.identity_prompt_version, run.model_id,
-                model.model_name, model.defaults_json, provider.id AS provider_id,
+                model.model_name, run.model_parameters_json, provider.id AS provider_id,
                 provider.adapter, provider.base_url, provider.credential_ref,
                 dispatch.source_type, dispatch.source_id, dispatch.source_revision
          FROM runs AS run
@@ -375,7 +375,7 @@ async fn load_run_configuration(
         "Run model or Provider is unavailable",
     ))?;
     let adapter: String = row.try_get("adapter")?;
-    let defaults: String = row.try_get("defaults_json")?;
+    let defaults: String = row.try_get("model_parameters_json")?;
     Ok(RunConfiguration {
         run_id: parse_id(&row, "id", "run id")?,
         topic_id: parse_id(&row, "topic_id", "topic id")?,
@@ -391,7 +391,7 @@ async fn load_run_configuration(
         credential_ref: row.try_get("credential_ref")?,
         model_name: row.try_get("model_name")?,
         defaults: serde_json::from_str(&defaults)
-            .map_err(|_| StoreError::CorruptData("model defaults"))?,
+            .map_err(|_| StoreError::CorruptData("Run model parameters"))?,
         source_type: row.try_get("source_type")?,
         source_id: row.try_get("source_id")?,
         source_revision: row.try_get("source_revision")?,

@@ -16,7 +16,8 @@ the corresponding internal Model record when the Member is saved.
 
 - Provider describes how and where to call an API.
 - Model identifies one configured model and its capabilities.
-- AI Member adds an identity Prompt and chooses a default Model.
+- AI Member adds an identity Prompt, chooses a default Model, and may override
+  behavioral execution defaults such as `temperature`.
 - Conversation belongs to an AI Member and an Issue or Proposal, but remains
   provider-neutral.
 
@@ -24,6 +25,17 @@ Identity is only the Prompt. It does not select special application code,
 permissions, or tools. All AI Members run through the same engine. Changing the
 default Model affects later Runs only; each Run freezes the selected Provider,
 Model, parameters, identity Prompt version, and context.
+
+Parameter resolution is explicit:
+
+```text
+Model defaults -> AI Member execution defaults -> immutable Run parameters
+```
+
+Model defaults describe the normal route. Member defaults shape one persistent
+voice without duplicating the Provider or vendor model. The resolved object is
+stored on the Run before work is queued, so later Member changes do not alter an
+existing Run.
 
 ## Implemented providers
 
@@ -156,6 +168,8 @@ ai_member:
     Review boundaries, scalability, migration risk, and unnecessary complexity.
   provider_id: configured-provider-id
   model_name: exact-vendor-model-id
+  execution_defaults:
+    temperature: 0.2
   enabled: true
 ```
 
