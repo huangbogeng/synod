@@ -274,11 +274,9 @@ button:disabled { cursor: default; }
 .provider-record > div { min-width: 0; display: grid; gap: 3px; }
 .provider-record > div strong, .provider-record > div small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .provider-record > button { flex: 0 0 auto; padding: 5px 7px; border: 1px solid #c9c4b9; border-radius: 5px; color: #65716d; background: #faf8f3; font: 6px 'DM Mono'; cursor: pointer; }
-.model-results { display: flex !important; flex-wrap: wrap; gap: 5px !important; padding: 4px 0 9px !important; background: transparent !important; }
-.model-results button { padding: 5px 7px; border: 1px solid #d6d0c4; border-radius: 12px; color: #6d7072; background: #f4f1e9; font: 7px 'DM Mono'; cursor: pointer; }
-.model-results button.active { border-color: #bd776b; color: #913f34; background: #fff0ea; }
-.member-model-tools { display: flex; margin-top: -7px; }
+.member-model-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: -7px; }
 .member-model-tools button { padding: 0; border: 0; color: #557b90; background: transparent; font-size: 8px; cursor: pointer; }
+.member-model-tools small { color: #9a5a50; font-size: 8px; text-align: right; }
 
 /* Issue timeline */
 .issue-detail { max-width: 920px; margin: 0 auto; padding: 30px 34px 60px; }

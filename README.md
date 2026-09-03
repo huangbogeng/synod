@@ -115,9 +115,9 @@ Member setup, Topic creation, Topic seats and one-member Team setup, Issue
 creation, Issue timelines, Comments, mentions, Run state refresh, and final AI
 Comments. The preset-first Provider form accepts either a local API key or an
 `env://` reference. Local keys are stored in the permission-restricted SQLite
-database and are never returned by the HTTP API. Saved Providers can be tested
-against their official model-list endpoint and a discovered model can be copied
-directly into the AI Member form. The UI creates or reuses the internal Model
+database and are never returned by the HTTP API. Selecting a saved Provider
+automatically loads the models available to its credential into the AI Member
+picker. The UI creates or reuses the internal Model
 record when that Member is saved, so users manage only Provider routes and
 Members.
 

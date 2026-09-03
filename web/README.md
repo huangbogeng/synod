@@ -10,10 +10,11 @@ opening an Issue with an `@mention`, and reading its durable response in the
 Issue timeline. Settings offers local API-key storage for the simplest setup or
 an environment-variable reference for externally managed credentials. Secret
 values are accepted write-only and never returned by the API.
-Each saved Provider also exposes a `Test + models` action. Discovery runs in the
-Rust process with the stored credential; choosing a result fills the separate
-AI Member model field. Saving the Member creates or reuses the internal Model
-record; Model remains a reproducibility boundary, not a third settings card.
+Selecting a Provider automatically asks its model-list endpoint for the models
+available to that credential. The AI Member form presents those results as a
+picker with an explicit refresh action. Saving the Member creates or reuses the
+internal Model record; Model remains a reproducibility boundary, not a third
+settings card.
 
 For frontend development, run the Rust API and Vite separately:
 
