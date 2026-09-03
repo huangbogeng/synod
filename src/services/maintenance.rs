@@ -24,6 +24,14 @@ impl MaintenanceService {
             .map_err(Into::into)
     }
 
+    pub async fn rotate_bootstrap_token(&self) -> Result<String, ServiceError> {
+        let actor = self.database.local_bootstrap_principal().await?;
+        self.database
+            .rotate_bootstrap_token_local(actor.id)
+            .await
+            .map_err(Into::into)
+    }
+
     pub async fn count_topics(&self) -> Result<u64, ServiceError> {
         let actor = self.database.local_bootstrap_principal().await?;
         let count = self.database.list_topics_for(actor.id).await?.len();
@@ -176,6 +184,49 @@ mod tests {
                 .fetch_one(database.pool())
                 .await
                 .unwrap(),
+            1
+        );
+    }
+
+    #[tokio::test]
+    async fn rotating_bootstrap_token_revokes_the_previous_token() {
+        let database = Database::connect(Path::new(":memory:")).await.unwrap();
+        let bootstrap = database
+            .bootstrap_human("admin", "Administrator", "test")
+            .await
+            .unwrap();
+        let principal_id = bootstrap.principal.id;
+
+        let replacement = MaintenanceService::new(database.clone())
+            .rotate_bootstrap_token()
+            .await
+            .unwrap();
+
+        assert!(
+            database
+                .authenticate(&bootstrap.token)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            database
+                .authenticate(&replacement)
+                .await
+                .unwrap()
+                .unwrap()
+                .id,
+            principal_id
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM principal_tokens
+                 WHERE principal_id = ? AND revoked_at IS NULL"
+            )
+            .bind(principal_id.to_string())
+            .fetch_one(database.pool())
+            .await
+            .unwrap(),
             1
         );
     }

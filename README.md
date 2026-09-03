@@ -185,6 +185,7 @@ before running these commands against its database:
 
 ```bash
 cargo run -- config clear-topics --confirm
+cargo run -- config rotate-token --confirm
 cargo run -- config set-member \
   --handle developer-precise \
   --display-name "Developer · Precise" \

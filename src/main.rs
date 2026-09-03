@@ -53,6 +53,12 @@ enum Command {
 
 #[derive(Debug, Subcommand)]
 enum ConfigCommand {
+    /// Revoke active bootstrap Human tokens and print one replacement token.
+    RotateToken {
+        /// Confirm token revocation after reviewing the target database.
+        #[arg(long)]
+        confirm: bool,
+    },
     /// Delete every Topic and its discussion data. Providers and Members remain.
     ClearTopics {
         /// Confirm the irreversible deletion after reviewing the target database.
@@ -155,6 +161,28 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let database = Database::connect(&storage.database).await?;
             let service = MaintenanceService::new(database);
             match action {
+                ConfigCommand::RotateToken { confirm } => {
+                    if !confirm {
+                        println!(
+                            "{}",
+                            serde_json::json!({
+                                "rotated": false,
+                                "confirm_with": "--confirm",
+                                "effect": "revoke active bootstrap Human tokens and issue one replacement"
+                            })
+                        );
+                        return Ok(());
+                    }
+                    let token = service.rotate_bootstrap_token().await?;
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "rotated": true,
+                            "token": token,
+                            "warning": "Store this token now; Synod cannot display it again."
+                        })
+                    );
+                }
                 ConfigCommand::ClearTopics { confirm } => {
                     if !confirm {
                         println!(

@@ -121,6 +121,39 @@ impl Database {
         row.map(principal_from_row).transpose()
     }
 
+    pub(crate) async fn rotate_bootstrap_token_local(
+        &self,
+        actor_id: PrincipalId,
+    ) -> Result<String, StoreError> {
+        self.require_server_admin(actor_id).await?;
+        let token = generate_token();
+        let token_hash = hash_token(&token);
+        let mut transaction = self.pool.begin().await?;
+
+        sqlx::query(
+            "UPDATE principal_tokens
+             SET revoked_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+             WHERE principal_id = ? AND revoked_at IS NULL",
+        )
+        .bind(actor_id.to_string())
+        .execute(&mut *transaction)
+        .await?;
+
+        sqlx::query(
+            "INSERT INTO principal_tokens(
+                id, principal_id, label, token_hash, created_at
+             ) VALUES (?, ?, 'rotation', ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+        )
+        .bind(Uuid::now_v7().to_string())
+        .bind(actor_id.to_string())
+        .bind(token_hash.as_slice())
+        .execute(&mut *transaction)
+        .await?;
+
+        transaction.commit().await?;
+        Ok(token)
+    }
+
     pub(crate) async fn insert_topic(
         &self,
         actor: &Principal,
