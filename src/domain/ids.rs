@@ -67,6 +67,9 @@ entity_id!(NotificationId);
 entity_id!(ConversationId);
 entity_id!(RunId);
 entity_id!(JobId);
+entity_id!(ContextSnapshotId);
+entity_id!(ProviderAttemptId);
+entity_id!(ConversationItemId);
 
 #[cfg(test)]
 mod tests {

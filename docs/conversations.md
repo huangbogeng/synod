@@ -179,6 +179,10 @@ Implement locally:
 - single-writer queue per Conversation;
 - full transcript inspection.
 
+The current execution slice persists the trigger and terminal model message or
+error as ordered `conversation_items`. Context epochs, provider cursors, tool
+turns, and compaction remain future layers.
+
 Do not initially implement:
 
 - cross-Issue private memory;

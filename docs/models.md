@@ -165,3 +165,10 @@ The identity Prompt remains the same unless separately edited.
 - retry on the same Model;
 - explicit cross-model retry as a new Run;
 - no load balancing, scoring, automatic fallback, or dynamic routing.
+
+The provider-neutral `ModelGateway` boundary and normalized request/response
+types are now implemented. The execution service passes the exact Provider
+adapter, endpoint, credential reference, Model name, defaults, identity Prompt,
+and frozen context to that boundary without exposing credentials through public
+JSON. Native HTTP implementations for the four adapter families remain the next
+slice.

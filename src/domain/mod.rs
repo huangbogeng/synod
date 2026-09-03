@@ -1,4 +1,5 @@
 mod dispatch;
+mod execution;
 mod ids;
 mod issue;
 mod mentions;
@@ -11,9 +12,14 @@ pub use dispatch::{
     Dispatch, DispatchStatus, DispatchTarget, DispatchTargetOutcome, DispatchTargetSource,
     MentionSourceKind, Notification, Run,
 };
+pub use execution::{
+    ContextComment, ContextInput, ContextIssue, ContextManifest, ContextSnapshot, ContextSource,
+    ContextTopic, ContextTrigger, ModelRequest, ModelResponse,
+};
 pub use ids::{
-    CommentId, ConversationId, DispatchId, JobId, ModelId, NotificationId, PrincipalId, ProviderId,
-    RunId, TeamId, TopicId, TopicItemId,
+    CommentId, ContextSnapshotId, ConversationId, ConversationItemId, DispatchId, JobId, ModelId,
+    NotificationId, PrincipalId, ProviderAttemptId, ProviderId, RunId, TeamId, TopicId,
+    TopicItemId,
 };
 pub use issue::{Comment, CommentKind, CreateComment, CreateIssue, Issue, IssueType};
 pub use mentions::parse_mentions;

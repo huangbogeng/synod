@@ -169,6 +169,12 @@ queued Run plus a `run.execute` job for each available AI Member. Unknown handle
 empty Teams, inactive principals, and unavailable AI configuration are retained
 as skipped targets; valid siblings still dispatch.
 
-The worker does not yet claim `run.execute` jobs or call Provider APIs. Runs
-therefore remain `queued`, with no context snapshot or conclusion, until the
-provider execution slice is implemented.
+The provider-neutral execution service now claims `run.execute` jobs with a
+five-minute lease, reclaims expired leases as a new Attempt, freezes context,
+and atomically settles the Attempt, Run, Job, Conversation, activity event, and
+final AI Comment. Provider failures produce a terminal failed Run and diagnostic
+Conversation item without publishing a fake Comment.
+
+Native HTTP adapters are not yet connected to the production worker, so normal
+runtime Runs remain queued. The execution path is currently exercised through
+an injected gateway in tests.

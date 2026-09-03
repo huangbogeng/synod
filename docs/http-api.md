@@ -121,6 +121,7 @@ POST   /dispatches/{dispatch_id}/retry
 POST   /dispatches/{dispatch_id}/cancel
 
 GET    /runs/{run_id}
+GET    /context-snapshots/{snapshot_id}
 GET    /runs/{run_id}/events
 POST   /runs/{run_id}/retry
 POST   /runs/{run_id}/cancel
@@ -134,9 +135,9 @@ or Reviews, not token deltas.
 Retrying one Run creates a new Run. Retrying mention expansion creates a new
 Dispatch. Neither endpoint mutates the old record.
 
-The current implementation exposes Dispatch detail, Run detail, and the acting
-Human's notifications. Retry, cancellation, Run events, and notification
-read-state mutation remain planned.
+The current implementation exposes Dispatch detail, Run detail, immutable
+Context Snapshot detail, and the acting Human's notifications. Retry,
+cancellation, Run events, and notification read-state mutation remain planned.
 
 ## Artifacts and workspace snapshots
 

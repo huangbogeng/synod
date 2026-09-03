@@ -1,5 +1,8 @@
 use crate::{
-    domain::{Dispatch, DispatchId, Notification, Principal, Run, RunId},
+    domain::{
+        ContextSnapshot, ContextSnapshotId, Dispatch, DispatchId, Notification, Principal, Run,
+        RunId,
+    },
     persistence::Database,
 };
 
@@ -40,6 +43,17 @@ impl DispatchService {
     ) -> Result<Vec<Notification>, ServiceError> {
         self.database
             .list_notifications_for(actor.id)
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn get_context_snapshot(
+        &self,
+        actor: &Principal,
+        snapshot_id: ContextSnapshotId,
+    ) -> Result<ContextSnapshot, ServiceError> {
+        self.database
+            .get_context_snapshot_for(actor.id, snapshot_id)
             .await
             .map_err(Into::into)
     }

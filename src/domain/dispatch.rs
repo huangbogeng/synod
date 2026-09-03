@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ConversationId, DispatchId, ModelId, NotificationId, PrincipalId, PrincipalKind, RunConclusion,
-    RunId, RunStatus, TopicId, TopicItemId,
+    ContextSnapshotId, ConversationId, DispatchId, ModelId, NotificationId, PrincipalId,
+    PrincipalKind, RunConclusion, RunId, RunStatus, TopicId, TopicItemId,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,7 +70,7 @@ pub struct Run {
     pub conversation_id: ConversationId,
     pub identity_prompt_version: i64,
     pub model_id: ModelId,
-    pub context_snapshot_id: Option<String>,
+    pub context_snapshot_id: Option<ContextSnapshotId>,
     pub status: RunStatus,
     pub conclusion: Option<RunConclusion>,
     pub retry_of_run_id: Option<RunId>,

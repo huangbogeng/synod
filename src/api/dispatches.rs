@@ -6,7 +6,7 @@ use axum::{
 };
 
 use crate::{
-    domain::{DispatchId, RunId},
+    domain::{ContextSnapshotId, DispatchId, RunId},
     services::DispatchService,
 };
 
@@ -50,6 +50,18 @@ pub async fn list_notifications(
     Ok(Json(Data {
         data: notifications,
     }))
+}
+
+pub async fn get_context_snapshot(
+    State(state): State<AppState>,
+    AuthenticatedPrincipal(principal): AuthenticatedPrincipal,
+    Path(snapshot_id): Path<String>,
+) -> Result<Json<Data<crate::domain::ContextSnapshot>>, ApiError> {
+    let snapshot_id = parse_id::<ContextSnapshotId>(&snapshot_id)?;
+    let snapshot = DispatchService::new(state.database)
+        .get_context_snapshot(&principal, snapshot_id)
+        .await?;
+    Ok(Json(Data { data: snapshot }))
 }
 
 fn parse_id<T>(value: &str) -> Result<T, ApiError>

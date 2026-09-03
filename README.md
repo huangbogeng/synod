@@ -103,9 +103,11 @@ bootstrap authentication, Topic APIs, the seven built-in Issue types, nested
 Issue creation, Comments, Provider/Model/AI Member configuration, Topic
 Membership, and static Teams. The worker now resolves durable mention snapshots:
 it expands Teams, deduplicates members, creates Human notifications, and queues
-one Run plus durable job for each available AI Member. Provider execution,
-context assembly, AI-authored output, and Proposal use cases are not implemented
-yet.
+one Run plus durable job for each available AI Member. The provider-neutral
+execution core can lease a queued job, freeze its initial Issue context, settle a
+normalized model response as an AI Comment, and record failure without publishing
+fake output. Native HTTP Provider adapters, extended context/tool assembly, and
+Proposal use cases are not implemented yet.
 
 ## Run the foundation
 

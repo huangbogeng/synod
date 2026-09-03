@@ -35,6 +35,10 @@ pub fn router(state: AppState) -> Router {
             get(dispatches::get_dispatch),
         )
         .route("/api/v1/runs/{run_id}", get(dispatches::get_run))
+        .route(
+            "/api/v1/context-snapshots/{snapshot_id}",
+            get(dispatches::get_context_snapshot),
+        )
         .route("/api/v1/topics", get(topics::list).post(topics::create))
         .route("/api/v1/topics/{topic_id}", get(topics::get))
         .route("/api/v1/issue-types", get(issues::list_types))

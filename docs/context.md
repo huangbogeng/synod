@@ -200,3 +200,16 @@ The mode and resulting snapshot ID are visible in the Run timeline.
 - no implicit whole-repository upload;
 - bounded read-only exploration of explicitly attached WorkspaceSnapshots;
 - identical base context for AI Members from the same Team dispatch.
+
+## Current implementation
+
+The execution core now creates one immutable `context_snapshots` row before a
+Provider call. For Issue Runs it captures selected Topic fields, the full current
+Issue, the exact trigger revision, and the Comment timeline through a Comment
+trigger. The stored manifest lists each included source and an explicit empty
+omission list; the authenticated API exposes it through
+`GET /context-snapshots/{snapshot_id}`.
+
+References, Artifacts, WorkspaceSnapshots, truncation, and compaction are not yet
+assembled. Until those policies are implemented, the production worker does not
+invoke native Provider adapters.

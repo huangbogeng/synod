@@ -85,7 +85,9 @@ The current worker resolves at most one pending Dispatch per pass. Dispatch
 expansion and creation of notifications, Conversations, queued Runs, and
 `run.execute` jobs are atomic. Job leasing and Provider execution are the next
 worker layer; `synod worker --once` currently performs one Dispatch-resolution
-pass and exits.
+pass and exits. A provider-neutral execution service and lease/settlement
+transactions exist behind an injected `ModelGateway`; production native adapters
+are not connected yet.
 
 Redis, RabbitMQ, Celery, and Kubernetes are not required. A future deployment
 may add a queue adapter only after database polling becomes a measured problem.

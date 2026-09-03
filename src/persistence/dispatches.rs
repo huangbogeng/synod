@@ -543,7 +543,7 @@ fn run_from_row(row: &SqliteRow) -> Result<Run, StoreError> {
         conversation_id: parse_id(row, "conversation_id", "conversation id")?,
         identity_prompt_version: row.try_get("identity_prompt_version")?,
         model_id: parse_id(row, "model_id", "model id")?,
-        context_snapshot_id: row.try_get("context_snapshot_id")?,
+        context_snapshot_id: parse_optional_id(row, "context_snapshot_id", "context snapshot id")?,
         status: match status.as_str() {
             "queued" => RunStatus::Queued,
             "in_progress" => RunStatus::InProgress,

@@ -6,6 +6,7 @@ use sqlx::{
 };
 
 mod dispatches;
+mod execution;
 mod issues;
 mod members;
 mod store;
@@ -72,6 +73,8 @@ mod tests {
             "ai_profiles",
             "comments",
             "conversations",
+            "conversation_items",
+            "context_snapshots",
             "dispatch_mentions",
             "dispatch_target_sources",
             "dispatch_targets",
@@ -85,6 +88,7 @@ mod tests {
             "principals",
             "proposals",
             "providers",
+            "provider_attempts",
             "runs",
             "team_members",
             "teams",
