@@ -12,6 +12,7 @@ use crate::persistence::Database;
 
 mod admin;
 mod auth;
+mod dispatches;
 mod error;
 mod issues;
 mod members;
@@ -28,6 +29,12 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/v1/health", get(health))
         .route("/api/v1/me", get(auth::me))
+        .route("/api/v1/notifications", get(dispatches::list_notifications))
+        .route(
+            "/api/v1/dispatches/{dispatch_id}",
+            get(dispatches::get_dispatch),
+        )
+        .route("/api/v1/runs/{run_id}", get(dispatches::get_run))
         .route("/api/v1/topics", get(topics::list).post(topics::create))
         .route("/api/v1/topics/{topic_id}", get(topics::get))
         .route("/api/v1/issue-types", get(issues::list_types))
@@ -358,7 +365,9 @@ mod tests {
             .await
             .unwrap();
         let bearer = format!("Bearer {}", bootstrap.token);
-        let app = router(AppState { database });
+        let app = router(AppState {
+            database: database.clone(),
+        });
 
         let raw_secret = send(
             &app,
@@ -477,6 +486,50 @@ mod tests {
         .await;
         assert_eq!(teams.status(), StatusCode::OK);
         assert_eq!(json_body(teams).await["data"].as_array().unwrap().len(), 1);
+
+        let issue = send(
+            &app,
+            "POST",
+            &format!("/api/v1/topics/{}/issues", topic.id),
+            &bearer,
+            Some(serde_json::json!({
+                "issue_type": "code_audit",
+                "title": "Review boundaries",
+                "body": "@design-team review this design."
+            })),
+        )
+        .await;
+        assert_eq!(issue.status(), StatusCode::CREATED);
+        let issue = json_body(issue).await;
+        let dispatch_id = issue["dispatch"]["id"].as_str().unwrap();
+        assert!(crate::workers::process_once(&database).await.unwrap());
+
+        let dispatch = send(
+            &app,
+            "GET",
+            &format!("/api/v1/dispatches/{dispatch_id}"),
+            &bearer,
+            None,
+        )
+        .await;
+        assert_eq!(dispatch.status(), StatusCode::OK);
+        let dispatch = json_body(dispatch).await;
+        assert_eq!(dispatch["data"]["status"], "dispatched");
+        assert_eq!(dispatch["data"]["targets"][0]["handle"], "architect");
+        let run_id = dispatch["data"]["targets"][0]["run_id"].as_str().unwrap();
+
+        let run = send(
+            &app,
+            "GET",
+            &format!("/api/v1/runs/{run_id}"),
+            &bearer,
+            None,
+        )
+        .await;
+        assert_eq!(run.status(), StatusCode::OK);
+        let run = json_body(run).await;
+        assert_eq!(run["data"]["status"], "queued");
+        assert_eq!(run["data"]["ai_member_id"], ai_id);
     }
 
     async fn send(

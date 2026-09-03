@@ -63,6 +63,10 @@ entity_id!(DispatchId);
 entity_id!(ProviderId);
 entity_id!(ModelId);
 entity_id!(TeamId);
+entity_id!(NotificationId);
+entity_id!(ConversationId);
+entity_id!(RunId);
+entity_id!(JobId);
 
 #[cfg(test)]
 mod tests {

@@ -5,6 +5,7 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
 };
 
+mod dispatches;
 mod issues;
 mod members;
 mod store;
@@ -70,16 +71,21 @@ mod tests {
             "activity_events",
             "ai_profiles",
             "comments",
+            "conversations",
             "dispatch_mentions",
+            "dispatch_target_sources",
+            "dispatch_targets",
             "dispatches",
             "issue_types",
             "issues",
             "jobs",
             "models",
+            "notifications",
             "principal_tokens",
             "principals",
             "proposals",
             "providers",
+            "runs",
             "team_members",
             "teams",
             "topic_items",

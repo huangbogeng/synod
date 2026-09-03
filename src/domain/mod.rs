@@ -1,3 +1,4 @@
+mod dispatch;
 mod ids;
 mod issue;
 mod mentions;
@@ -6,8 +7,13 @@ mod permissions;
 mod states;
 mod topic;
 
+pub use dispatch::{
+    Dispatch, DispatchStatus, DispatchTarget, DispatchTargetOutcome, DispatchTargetSource,
+    MentionSourceKind, Notification, Run,
+};
 pub use ids::{
-    CommentId, DispatchId, ModelId, PrincipalId, ProviderId, TeamId, TopicId, TopicItemId,
+    CommentId, ConversationId, DispatchId, JobId, ModelId, NotificationId, PrincipalId, ProviderId,
+    RunId, TeamId, TopicId, TopicItemId,
 };
 pub use issue::{Comment, CommentKind, CreateComment, CreateIssue, Issue, IssueType};
 pub use mentions::parse_mentions;

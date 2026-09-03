@@ -81,6 +81,12 @@ The first version permits one active worker. A future PostgreSQL backend may
 permit several workers using row locking. This is a small internal queue, not a
 general workflow engine.
 
+The current worker resolves at most one pending Dispatch per pass. Dispatch
+expansion and creation of notifications, Conversations, queued Runs, and
+`run.execute` jobs are atomic. Job leasing and Provider execution are the next
+worker layer; `synod worker --once` currently performs one Dispatch-resolution
+pass and exits.
+
 Redis, RabbitMQ, Celery, and Kubernetes are not required. A future deployment
 may add a queue adapter only after database polling becomes a measured problem.
 

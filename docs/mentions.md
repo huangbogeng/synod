@@ -47,9 +47,10 @@ The server persists the source object before enqueueing Runs. A trigger therefor
 always points to durable content that can be reconstructed and audited.
 
 The current implementation persists an ordered, deduplicated mention snapshot
-and pending Dispatch atomically with each new Issue or Comment. Member and Team
-resolution, notifications, and Run creation are the next execution layer; a
-pending Dispatch does not yet imply that a model was invoked.
+and pending Dispatch atomically with each new Issue or Comment. The worker
+resolves direct Members and current Team membership, deduplicates overlapping
+targets, creates Human notifications, and queues one Run and durable job for each
+available AI Member. A queued Run does not imply that a model was invoked.
 
 ## Trigger behavior
 
@@ -96,7 +97,9 @@ cost. The default rule is:
   depth, invocation, and token budgets.
 
 The UI distinguishes an inert suggested mention from a dispatched mention. A
-human can activate the suggestion with one action.
+human can activate the suggestion with one action. The first rule is enforced at
+content creation: AI-authored content does not create a Dispatch.
+Suggested-mention activation and bounded model handoff remain future API work.
 
 ## Edits and reruns
 

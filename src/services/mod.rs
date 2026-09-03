@@ -1,4 +1,5 @@
 mod admin;
+mod dispatches;
 mod error;
 mod identity;
 mod issues;
@@ -11,3 +12,4 @@ pub use members::MembershipService;
 pub use topics::TopicService;
 mod members;
 pub use admin::AdminService;
+pub use dispatches::DispatchService;

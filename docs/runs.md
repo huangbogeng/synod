@@ -159,3 +159,16 @@ timeline event but it does not publish a fake AI Comment.
 - user retry as a new Run or Dispatch;
 - aggregate Dispatch status derived from child Runs and notifications;
 - final output on the Issue timeline, detailed execution in the Run view.
+
+## Current implementation
+
+Dispatch resolution is implemented as one SQLite transaction. It snapshots each
+resolved target and its direct or Team mention provenance, creates notifications
+for Humans, reuses the `(TopicItem, AI Member)` Conversation, and persists a
+queued Run plus a `run.execute` job for each available AI Member. Unknown handles,
+empty Teams, inactive principals, and unavailable AI configuration are retained
+as skipped targets; valid siblings still dispatch.
+
+The worker does not yet claim `run.execute` jobs or call Provider APIs. Runs
+therefore remain `queued`, with no context snapshot or conclusion, until the
+provider execution slice is implemented.

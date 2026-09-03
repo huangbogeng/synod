@@ -124,6 +124,7 @@ GET    /runs/{run_id}
 GET    /runs/{run_id}/events
 POST   /runs/{run_id}/retry
 POST   /runs/{run_id}/cancel
+GET    /notifications
 ```
 
 `GET /runs/{run_id}/events` is an SSE stream with resumable event IDs. The Issue
@@ -132,6 +133,10 @@ or Reviews, not token deltas.
 
 Retrying one Run creates a new Run. Retrying mention expansion creates a new
 Dispatch. Neither endpoint mutates the old record.
+
+The current implementation exposes Dispatch detail, Run detail, and the acting
+Human's notifications. Retry, cancellation, Run events, and notification
+read-state mutation remain planned.
 
 ## Artifacts and workspace snapshots
 

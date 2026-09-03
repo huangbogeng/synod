@@ -4,7 +4,7 @@ use sqlx::{Row, Sqlite, Transaction, sqlite::SqliteRow};
 
 use crate::domain::{
     Comment, CommentId, CreateComment, CreateIssue, DispatchId, Issue, IssueState, IssueType,
-    MembershipRole, Principal, PrincipalId, TopicId, TopicItemId, parse_mentions,
+    MembershipRole, Principal, PrincipalId, PrincipalKind, TopicId, TopicItemId, parse_mentions,
 };
 
 use super::{Database, StoreError};
@@ -115,7 +115,7 @@ impl Database {
             "issue",
             &item_id.to_string(),
             1,
-            actor.id,
+            actor,
             &mentions,
         )
         .await?;
@@ -262,7 +262,7 @@ impl Database {
             "comment",
             &comment_id.to_string(),
             1,
-            actor.id,
+            actor,
             &mentions,
         )
         .await?;
@@ -386,10 +386,10 @@ async fn insert_dispatch(
     source_type: &str,
     source_id: &str,
     source_revision: i64,
-    author_id: PrincipalId,
+    author: &Principal,
     mentions: &[String],
 ) -> Result<Option<DispatchId>, sqlx::Error> {
-    if mentions.is_empty() {
+    if mentions.is_empty() || author.kind == PrincipalKind::Ai {
         return Ok(None);
     }
     let dispatch_id = DispatchId::new();
@@ -404,7 +404,7 @@ async fn insert_dispatch(
     .bind(source_type)
     .bind(source_id)
     .bind(source_revision)
-    .bind(author_id.to_string())
+    .bind(author.id.to_string())
     .execute(&mut **transaction)
     .await?;
     for (order, handle) in mentions.iter().enumerate() {

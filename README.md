@@ -100,10 +100,12 @@ service.
 The executable foundation currently includes the CLI runtime roles, embedded
 SQLite migrations, initial domain state machines, Human-only merge permission,
 bootstrap authentication, Topic APIs, the seven built-in Issue types, nested
-Issue creation, Comments, and durable mention snapshots. Mention target
-resolution, model Runs, and Proposal use cases are not implemented yet. Provider,
-Model, AI Member, Topic Membership, and static Team configuration APIs are
-available as the routing foundation.
+Issue creation, Comments, Provider/Model/AI Member configuration, Topic
+Membership, and static Teams. The worker now resolves durable mention snapshots:
+it expands Teams, deduplicates members, creates Human notifications, and queues
+one Run plus durable job for each available AI Member. Provider execution,
+context assembly, AI-authored output, and Proposal use cases are not implemented
+yet.
 
 ## Run the foundation
 
@@ -132,7 +134,7 @@ curl -H "Authorization: Bearer $SYNOD_TOKEN" \
   http://127.0.0.1:3030/api/v1/me
 ```
 
-Run the worker storage check without starting its loop:
+Resolve at most one pending Dispatch without starting the worker loop:
 
 ```bash
 cargo run -- worker --once

@@ -213,7 +213,8 @@ Sensitive provider payloads and secrets are excluded from event payloads.
 - every Issue, Proposal, Comment, Review, Run, and referenced Artifact belongs
   to the same Topic unless an explicit cross-Topic reference is authorized;
 - a child Issue cannot be its own ancestor;
-- one Conversation has at most one queued or in-progress Run;
+- one Conversation has at most one in-progress Run; additional accepted Runs
+  may wait in its durable queue;
 - one source revision produces at most one Dispatch unless the action is an
   explicit rerun;
 - one Dispatch produces at most one target per expanded principal;
