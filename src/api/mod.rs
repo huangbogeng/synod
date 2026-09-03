@@ -17,6 +17,7 @@ mod error;
 mod issues;
 mod members;
 mod topics;
+mod web;
 
 use error::ApiError;
 
@@ -27,6 +28,9 @@ pub struct AppState {
 
 pub fn router(state: AppState) -> Router {
     Router::new()
+        .route("/", get(web::index))
+        .route("/assets/app.js", get(web::javascript))
+        .route("/assets/index.css", get(web::stylesheet))
         .route("/api/v1/health", get(health))
         .route("/api/v1/me", get(auth::me))
         .route("/api/v1/notifications", get(dispatches::list_notifications))
@@ -35,6 +39,7 @@ pub fn router(state: AppState) -> Router {
             get(dispatches::get_dispatch),
         )
         .route("/api/v1/runs/{run_id}", get(dispatches::get_run))
+        .route("/api/v1/topics/{topic_id}/runs", get(dispatches::list_runs))
         .route(
             "/api/v1/context-snapshots/{snapshot_id}",
             get(dispatches::get_context_snapshot),
@@ -79,6 +84,7 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/issues/{issue_id}/comments",
             get(issues::list_comments).post(issues::create_comment),
         )
+        .fallback(web::fallback)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }
@@ -143,6 +149,67 @@ mod tests {
         assert_eq!(json["status"], "ok");
         assert_eq!(json["database"], "ok");
         assert_eq!(json["version"], env!("CARGO_PKG_VERSION"));
+    }
+
+    #[tokio::test]
+    async fn embedded_web_application_and_assets_are_served_locally() {
+        let database = Database::connect(Path::new(":memory:")).await.unwrap();
+        let app = router(AppState { database });
+
+        let index = app
+            .clone()
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(index.status(), StatusCode::OK);
+        let index_type = index.headers()[header::CONTENT_TYPE]
+            .to_str()
+            .unwrap()
+            .to_owned();
+        assert!(index_type.starts_with("text/html"));
+        let index_body = index.into_body().collect().await.unwrap().to_bytes();
+        assert!(String::from_utf8_lossy(&index_body).contains("<title>Synod</title>"));
+
+        let javascript = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/app.js")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(javascript.status(), StatusCode::OK);
+        assert!(
+            javascript.headers()[header::CONTENT_TYPE]
+                .to_str()
+                .unwrap()
+                .starts_with("text/javascript")
+        );
+
+        let spa_route = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/topics/local-room")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(spa_route.status(), StatusCode::OK);
+
+        let missing_api = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/missing")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(missing_api.status(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
@@ -534,6 +601,19 @@ mod tests {
         let run = json_body(run).await;
         assert_eq!(run["data"]["status"], "queued");
         assert_eq!(run["data"]["ai_member_id"], ai_id);
+
+        let runs = send(
+            &app,
+            "GET",
+            &format!("/api/v1/topics/{}/runs", topic.id),
+            &bearer,
+            None,
+        )
+        .await;
+        assert_eq!(runs.status(), StatusCode::OK);
+        let runs = json_body(runs).await;
+        assert_eq!(runs["data"].as_array().unwrap().len(), 1);
+        assert_eq!(runs["data"][0]["id"], run_id);
     }
 
     async fn send(

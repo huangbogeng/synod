@@ -6,7 +6,7 @@ Synod starts as a modular Rust monolith with two runtime roles exposed by one
 binary:
 
 ```text
-synod server  -> HTTP API + server-rendered Web UI + SSE
+synod server  -> HTTP API + embedded Svelte Web UI + SSE
 synod worker  -> durable Dispatch, Run, and provider execution
 ```
 
@@ -25,10 +25,10 @@ Migrations           embedded SQLx migrations
 First-version DB     bundled SQLite
 Future database      PostgreSQL through a separate backend
 Provider HTTP        Reqwest
-Web rendering        Askama templates + vendored HTMX
+Web application      Svelte 5 + TypeScript + Vite
 Live updates         Server-Sent Events
 CLI                   Clap
-Tests                 cargo test
+Tests                 cargo test + svelte-check + Vite build
 Packaging             one Cargo package and one synod binary
 ```
 
@@ -49,11 +49,13 @@ is a future deployment path when multiple server or worker processes are
 required. The first version does not carry a runtime database abstraction or
 promise transparent database switching.
 
-The Web UI is mostly forms, timelines, diffs, status updates, and streamed Run
-output. Compile-time Askama templates plus HTMX cover that interaction without a
-second TypeScript application, duplicated DTOs, or a mandatory Node toolchain.
-Static browser dependencies are vendored so an installed Synod server does not
-depend on a public CDN.
+The Web UI is a small Svelte single-page application because the Topic board,
+Council presence, and streamed Run state are interaction-heavy. It uses a typed,
+thin client over the existing HTTP API rather than introducing a second backend.
+Vite emits stable JavaScript and CSS assets which Rust embeds at compile time.
+Installed users need only the `synod` binary; Node is a contributor dependency,
+not a runtime dependency. The UI loads no public CDN, cloud font, analytics, or
+remote application resource.
 
 SSE is sufficient because user actions remain ordinary HTTP requests and live
 updates flow from server to browser. WebSockets add no necessary first-version
@@ -122,10 +124,9 @@ src/
   workers/         job claiming and Run execution
   providers/       model protocol adapters
   tools/           authorized read-only tool broker
-  web/             routes and template view models
   cli/             local administration and remote API commands
-templates/         Askama HTML templates
-static/            vendored HTMX and application assets
+web/               Svelte source, typed API client, and Vite configuration
+web/dist/          deterministic assets embedded by Rust
 migrations/        embedded SQL migrations
 ```
 
@@ -155,10 +156,10 @@ does not import Axum, SQLx, Reqwest, templates, or provider SDKs.
 
 ## Authentication
 
-The first executable version needs two credential paths:
-
-- browser session for Human Members;
-- hashed bearer tokens for external callers.
+The first executable version uses the bootstrap Human Member's hashed bearer
+token for both browser and API access. The Web UI retains the entered token only
+in `sessionStorage`, so closing the browser tab clears it. A future local session
+exchange may replace this without changing domain authorization.
 
 AI Members never log in and receive no bearer credential. They act only through
 an attributable Run. Therefore the merge endpoint can reject AI execution by
@@ -167,37 +168,20 @@ construction as well as through the Human-principal authorization rule.
 OIDC, OAuth application installation, and enterprise identity integration are
 later extensions, not core domain concepts.
 
-## Deployment profiles
-
-### Local
+## Local-only deployment
 
 ```text
 one synod dev process
 SQLite
 local blob directory
+embedded Web UI
 ```
 
-### Small server
-
-```text
-one synod server process
-one synod worker process
-SQLite on one host
-local blob directory
-```
-
-### Multi-process later
-
-```text
-one or more servers
-one or more workers
-PostgreSQL
-shared S3-compatible blob storage
-```
-
-The local profile is the primary product experience. The larger profile is not
-part of the first-version compatibility promise and must not force
-distributed-systems machinery into the core model.
+Synod binds to `127.0.0.1:3030` by default. It has no tunnel, relay, cloud
+workspace, device pairing, runtime registration, or inbound Provider callback.
+DeepSeek and MiniMax calls are outbound HTTPS requests only. Binding another
+address is an explicit operator action and is outside the default local security
+boundary.
 
 ## Explicit non-choices
 
@@ -209,7 +193,9 @@ The first version does not use:
 - a general-purpose ORM;
 - Redis or a message broker;
 - Celery or a general workflow scheduler;
-- a React/Vue SPA and separate frontend API client;
+- a frontend application server or server-side JavaScript runtime;
+- cloud fonts, analytics, or CDN assets;
+- tunneling, relay gateways, device pairing, or cloud workspaces;
 - WebSockets;
 - Docker as a requirement for local use.
 

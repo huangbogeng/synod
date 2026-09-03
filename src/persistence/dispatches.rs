@@ -206,6 +206,27 @@ impl Database {
         run_from_row(&row)
     }
 
+    pub(crate) async fn list_runs_for(
+        &self,
+        actor_id: PrincipalId,
+        topic_id: TopicId,
+    ) -> Result<Vec<Run>, StoreError> {
+        let rows = sqlx::query(
+            "SELECT run.id, run.dispatch_id, run.topic_id, run.item_id, run.ai_principal_id,
+                    run.conversation_id, run.identity_prompt_version, run.model_id,
+                    run.context_snapshot_id, run.status, run.conclusion, run.retry_of_run_id
+             FROM runs AS run
+             JOIN topic_memberships AS membership ON membership.topic_id = run.topic_id
+             WHERE run.topic_id = ? AND membership.principal_id = ?
+             ORDER BY run.created_at DESC, run.id DESC",
+        )
+        .bind(topic_id.to_string())
+        .bind(actor_id.to_string())
+        .fetch_all(&self.pool)
+        .await?;
+        rows.iter().map(run_from_row).collect()
+    }
+
     pub(crate) async fn list_notifications_for(
         &self,
         actor_id: PrincipalId,

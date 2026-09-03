@@ -6,7 +6,7 @@ use axum::{
 };
 
 use crate::{
-    domain::{ContextSnapshotId, DispatchId, RunId},
+    domain::{ContextSnapshotId, DispatchId, RunId, TopicId},
     services::DispatchService,
 };
 
@@ -38,6 +38,18 @@ pub async fn get_run(
         .get_run(&principal, run_id)
         .await?;
     Ok(Json(Data { data: run }))
+}
+
+pub async fn list_runs(
+    State(state): State<AppState>,
+    AuthenticatedPrincipal(principal): AuthenticatedPrincipal,
+    Path(topic_id): Path<String>,
+) -> Result<Json<Data<Vec<crate::domain::Run>>>, ApiError> {
+    let topic_id = parse_id::<TopicId>(&topic_id)?;
+    let runs = DispatchService::new(state.database)
+        .list_runs(&principal, topic_id)
+        .await?;
+    Ok(Json(Data { data: runs }))
 }
 
 pub async fn list_notifications(

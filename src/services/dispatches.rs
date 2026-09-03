@@ -1,7 +1,7 @@
 use crate::{
     domain::{
         ContextSnapshot, ContextSnapshotId, Dispatch, DispatchId, Notification, Principal, Run,
-        RunId,
+        RunId, TopicId,
     },
     persistence::Database,
 };
@@ -33,6 +33,17 @@ impl DispatchService {
     pub async fn get_run(&self, actor: &Principal, run_id: RunId) -> Result<Run, ServiceError> {
         self.database
             .get_run_for(actor.id, run_id)
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn list_runs(
+        &self,
+        actor: &Principal,
+        topic_id: TopicId,
+    ) -> Result<Vec<Run>, ServiceError> {
+        self.database
+            .list_runs_for(actor.id, topic_id)
             .await
             .map_err(Into::into)
     }

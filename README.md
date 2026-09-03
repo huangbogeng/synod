@@ -109,7 +109,9 @@ configured DeepSeek or MiniMax model, settle a normalized model response as an
 AI Comment, and record failure without publishing fake output. The first native
 HTTP slice deliberately supports only these two vendors through their official
 Chat Completions endpoints. Extended context/tool assembly and Proposal use cases
-are not implemented yet.
+are not implemented yet. A first Svelte Web UI is embedded into the Rust binary:
+it provides local token unlock, a Topic overview, a GitHub-shaped Issue board,
+and a Topic Council showing Human and AI seats.
 
 ## Run the foundation
 
@@ -124,8 +126,10 @@ Bootstrap prints the only copy of the first Human Member's bearer token. Store
 it securely; subsequent bootstrap attempts are rejected and Synod stores only
 the token digest.
 
-The default server listens on `127.0.0.1:3030` and creates `synod.db` in the
-working directory. Check it with:
+The default server listens on `127.0.0.1:3030`, creates `synod.db` in the working
+directory, and serves the embedded Web UI at
+`http://127.0.0.1:3030`. It does not create a tunnel or cloud connection. Enter
+the bootstrap token in the local unlock screen. Check the API with:
 
 ```bash
 curl http://127.0.0.1:3030/api/v1/health
@@ -148,7 +152,13 @@ cargo run -- worker --once
 Validate the repository with:
 
 ```bash
+npm --prefix web install
+npm --prefix web run check
+npm --prefix web run build
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
 cargo test --all-targets
 ```
+
+The generated `web/dist` files are committed because Rust embeds them into the
+binary. End users do not need Node or a separate frontend server.

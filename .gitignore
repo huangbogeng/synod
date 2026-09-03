@@ -3,3 +3,4 @@
 /synod.db-shm
 /synod.db-wal
 /.env
+/web/node_modules/
