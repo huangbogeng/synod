@@ -1,0 +1,21 @@
+# Changelog
+
+All notable changes to Synod will be documented here. The project follows
+[Semantic Versioning](https://semver.org/) once tagged releases begin.
+
+## Unreleased
+
+### Added
+
+- Rust modular-monolith foundation with Axum, SQLx, and bundled SQLite.
+- Human bootstrap authentication and Human-only merge authorization.
+- Topic, Issue, Comment, mention Dispatch, Run, Team, and Council workflows.
+- Provider-neutral execution through DeepSeek and MiniMax.
+- Local Svelte Web UI with Provider management and an AI Member roster.
+
+### Security
+
+- Provider credentials are write-only through the API and excluded from API
+  responses.
+- Local runtime databases, environment files, and build outputs are excluded
+  from source control where appropriate.

@@ -1,5 +1,8 @@
 # Synod
 
+[![CI](https://github.com/huangbogeng/synod/actions/workflows/ci.yml/badge.svg)](https://github.com/huangbogeng/synod/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-c95646.svg)](LICENSE)
+
 Synod is a lightweight, model-provider-neutral collaboration hub for AI-assisted
 research and software decisions.
 
@@ -91,11 +94,15 @@ The executable technology and deployment shape are recorded in
 
 ## Status
 
+> [!WARNING]
+> Synod is pre-alpha software for trusted local environments. Interfaces and
+> migrations may change before the first stable release; do not expose the
+> server directly to an untrusted network.
+
 The project is in the product, protocol, and executable-foundation design phase.
 The first-version implementation stack is a Rust modular monolith with bundled
-SQLite. The initial dependency lock exists; the open-source license still needs
-to be selected. The project is not being designed as a commercial hosted
-service.
+SQLite. Synod is released under the MIT License and is not being designed as a
+commercial hosted service.
 
 The executable foundation currently includes the CLI runtime roles, embedded
 SQLite migrations, initial domain state machines, Human-only merge permission,
@@ -147,7 +154,10 @@ the token digest.
 The default server listens on `127.0.0.1:3030`, creates `synod.db` in the working
 directory, and serves the embedded Web UI at
 `http://127.0.0.1:3030`. It does not create a tunnel or cloud connection. Enter
-the bootstrap token in the local unlock screen. Check the API with:
+the bootstrap token in the local unlock screen. Use `.env.example` as a reference
+when exporting `SYNOD_DATABASE` or `SYNOD_BIND`; Synod does not load `.env` files
+itself. Do not bind to a public interface without adding an appropriate trusted
+network boundary. Check the API with:
 
 ```bash
 curl http://127.0.0.1:3030/api/v1/health
@@ -180,3 +190,18 @@ cargo test --all-targets
 
 The generated `web/dist` files are committed because Rust embeds them into the
 binary. End users do not need Node or a separate frontend server.
+
+## Contributing and security
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before a
+large change, and follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) when
+participating in the project.
+
+Synod handles model-provider credentials. Review [SECURITY.md](SECURITY.md)
+before deployment and use private vulnerability reporting for security issues.
+Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
+Maintainer release steps are documented in [docs/releasing.md](docs/releasing.md).
+
+## License
+
+Synod is licensed under the [MIT License](LICENSE).

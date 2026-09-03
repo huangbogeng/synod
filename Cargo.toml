@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2024"
 description = "A lightweight, provider-neutral deliberation hub for humans and AI members"
 repository = "https://github.com/huangbogeng/synod"
+homepage = "https://github.com/huangbogeng/synod"
+readme = "README.md"
+license = "MIT"
+keywords = ["ai", "llm", "deliberation", "multi-agent", "collaboration"]
+categories = ["development-tools", "web-programming"]
 rust-version = "1.94"
 publish = false
 

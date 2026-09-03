@@ -1,0 +1,48 @@
+name: Bug report
+description: Report reproducible behavior that does not match Synod's contract.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include API keys, bootstrap tokens, database files, or private prompts.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the smallest safe sequence that reproduces the problem.
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Synod version or commit
+      placeholder: v0.x.y or git commit
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Web UI
+        - HTTP API
+        - Provider execution
+        - Persistence or migration
+        - Authorization
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Safe diagnostics
+      description: Add relevant logs after removing tokens, credentials, prompts, and private data.
