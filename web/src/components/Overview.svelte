@@ -5,6 +5,7 @@
   export let principal: Principal;
   export let topics: Topic[];
   export let onSelect: (id: string) => void;
+  export let onCreate: () => void;
 </script>
 
 <section class="overview page-enter">
@@ -14,7 +15,7 @@
       <h1>Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'}, {principal.display_name}.</h1>
       <p>Choose a room and continue the conversation.</p>
     </div>
-    <button class="button button--primary" type="button" disabled>
+    <button class="button button--primary" type="button" on:click={onCreate}>
       <span>＋</span> New topic
     </button>
   </header>
@@ -49,7 +50,7 @@
     <div class="empty-room">
       <span class="empty-mark">S</span>
       <h3>No topics yet</h3>
-      <p>Create the first Topic through the API; the creation form is the next UI slice.</p>
+      <p>Create the first Topic and give your council a durable room.</p>
     </div>
   {/if}
 </section>

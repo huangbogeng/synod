@@ -4,6 +4,7 @@
 
   export let issues: Issue[];
   export let runs: Run[];
+  export let onSelect: (issue: Issue) => void;
 
   $: open = issues.filter((issue) => laneFor(issue) === 'open');
   $: discussing = issues.filter((issue) => laneFor(issue) === 'discussing');
@@ -48,7 +49,7 @@
       <p class="lane-note">{lane.note}</p>
       <div class="lane-stack">
         {#each laneIssues(lane.key) as issue}
-          <article class="issue-card">
+          <button class="issue-card" type="button" on:click={() => onSelect(issue)}>
             <div class="issue-meta">
               <span class={`issue-type issue-type--${issue.issue_type}`}>{issueLabel(issue.issue_type)}</span>
               <span>#{issue.number}</span>
@@ -61,7 +62,7 @@
               {#if issueRuns(issue).length}<span>{issueRuns(issue).length} run{issueRuns(issue).length === 1 ? '' : 's'}</span>{/if}
               <span class="issue-open">↗</span>
             </footer>
-          </article>
+          </button>
         {:else}
           <div class="lane-empty"><span>·</span><p>Nothing here</p></div>
         {/each}

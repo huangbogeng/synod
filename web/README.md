@@ -4,6 +4,13 @@ The Web UI is a Svelte 5 single-page application for the local Synod process.
 It has no application server, cloud workspace, tunnel, analytics, CDN, or remote
 font dependency.
 
+The current product slice supports the complete path from configuring a
+DeepSeek or MiniMax route to creating an AI Member, seating it in a Topic,
+opening an Issue with an `@mention`, and reading its durable response in the
+Issue timeline. Settings records an environment-variable reference, never the
+secret value itself; restart the Rust process with that variable set before
+starting a model Run.
+
 For frontend development, run the Rust API and Vite separately:
 
 ```bash

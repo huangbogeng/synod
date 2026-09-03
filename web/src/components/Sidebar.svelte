@@ -5,8 +5,11 @@
   export let principal: Principal;
   export let topics: Topic[];
   export let selectedId: string | null;
+  export let view: 'overview' | 'topic' | 'settings';
   export let onHome: () => void;
   export let onSelect: (id: string) => void;
+  export let onCreateTopic: () => void;
+  export let onSettings: () => void;
   export let onLogout: () => void;
 </script>
 
@@ -17,7 +20,7 @@
   </button>
 
   <nav class="primary-nav" aria-label="Primary navigation">
-    <button class:active={!selectedId} type="button" on:click={onHome}>
+    <button class:active={view === 'overview'} type="button" on:click={onHome}>
       <span class="nav-glyph">⌂</span><span>Overview</span>
     </button>
     <button type="button" disabled><span class="nav-glyph">◎</span><span>Inbox</span><small>Soon</small></button>
@@ -26,12 +29,12 @@
   <div class="sidebar-section">
     <div class="sidebar-heading">
       <span>TOPICS</span>
-      <button type="button" aria-label="Create topic" title="Create topic is coming next">+</button>
+      <button type="button" aria-label="Create topic" title="Create topic" on:click={onCreateTopic}>+</button>
     </div>
     <div class="topic-nav">
       {#each topics as topic}
         <button
-          class:active={selectedId === topic.id}
+          class:active={view === 'topic' && selectedId === topic.id}
           type="button"
           title={topic.title}
           on:click={() => onSelect(topic.id)}
@@ -44,7 +47,7 @@
   </div>
 
   <div class="sidebar-bottom">
-    <button class="settings-link" type="button" disabled><span class="nav-glyph">⚙</span><span>Settings</span></button>
+    <button class:active={view === 'settings'} class="settings-link" type="button" on:click={onSettings}><span class="nav-glyph">⚙</span><span>Settings</span></button>
     <div class="profile-chip">
       <span class="avatar avatar--human">{initial(principal.display_name)}</span>
       <span><strong>{principal.display_name}</strong><small>@{principal.handle}</small></span>

@@ -54,6 +54,43 @@ export interface Model {
   enabled: boolean;
 }
 
+export interface Provider {
+  id: string;
+  name: string;
+  adapter: 'openai_compatible';
+  base_url: string;
+  credential_configured: boolean;
+  enabled: boolean;
+}
+
+export interface IssueType {
+  key: string;
+  display_name: string;
+  description: string;
+}
+
+export type CommentKind = 'discussion' | 'direction' | 'evidence' | 'progress' | 'result';
+
+export interface Comment {
+  id: string;
+  item_id: string;
+  author_id: string;
+  kind: CommentKind;
+  body: string;
+  revision: number;
+  reply_to_comment_id: string | null;
+}
+
+export interface DispatchSummary {
+  id: string;
+  status: 'pending';
+}
+
+export interface Creation<T> {
+  data: T;
+  dispatch: DispatchSummary | null;
+}
+
 export interface Run {
   id: string;
   item_id: string;
@@ -74,4 +111,10 @@ export interface TopicWorkspace {
   aiMembers: AiMember[];
   models: Model[];
   runs: Run[];
+}
+
+export interface AdminWorkspace {
+  providers: Provider[];
+  models: Model[];
+  aiMembers: AiMember[];
 }

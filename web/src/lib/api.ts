@@ -1,9 +1,15 @@
 import type {
   AiMember,
+  AdminWorkspace,
+  Comment,
+  CommentKind,
+  Creation,
   Envelope,
   Issue,
+  IssueType,
   Model,
   Principal,
+  Provider,
   Run,
   Team,
   Topic,
@@ -20,9 +26,19 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, token: string): Promise<T> {
+async function response<T>(
+  path: string,
+  token: string,
+  method = 'GET',
+  body?: unknown
+): Promise<T> {
   const response = await fetch(path, {
-    headers: { Authorization: `Bearer ${token}` }
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' })
+    },
+    body: body === undefined ? undefined : JSON.stringify(body)
   });
   if (!response.ok) {
     let message = `Request failed with HTTP ${response.status}`;
@@ -34,7 +50,11 @@ async function request<T>(path: string, token: string): Promise<T> {
     }
     throw new ApiError(response.status, message);
   }
-  return (await response.json() as Envelope<T>).data;
+  return await response.json() as T;
+}
+
+async function request<T>(path: string, token: string, method = 'GET', body?: unknown): Promise<T> {
+  return (await response<Envelope<T>>(path, token, method, body)).data;
 }
 
 export function currentPrincipal(token: string): Promise<Principal> {
@@ -43,6 +63,95 @@ export function currentPrincipal(token: string): Promise<Principal> {
 
 export function listTopics(token: string): Promise<Topic[]> {
   return request('/api/v1/topics', token);
+}
+
+export function createTopic(
+  token: string,
+  input: { key: string; title: string; description: string }
+): Promise<Topic> {
+  return request('/api/v1/topics', token, 'POST', input);
+}
+
+export function listIssueTypes(token: string): Promise<IssueType[]> {
+  return request('/api/v1/issue-types', token);
+}
+
+export function createIssue(
+  token: string,
+  topicId: string,
+  input: { issue_type: string; title: string; body: string; parent_issue_id: string | null }
+): Promise<Creation<Issue>> {
+  return response(`/api/v1/topics/${topicId}/issues`, token, 'POST', input);
+}
+
+export function listComments(token: string, issueId: string): Promise<Comment[]> {
+  return request(`/api/v1/issues/${issueId}/comments`, token);
+}
+
+export function createComment(
+  token: string,
+  issueId: string,
+  input: { kind: CommentKind; body: string; reply_to_comment_id: string | null }
+): Promise<Creation<Comment>> {
+  return response(`/api/v1/issues/${issueId}/comments`, token, 'POST', input);
+}
+
+export async function loadAdminWorkspace(token: string): Promise<AdminWorkspace> {
+  const [providers, models, aiMembers] = await Promise.all([
+    request<Provider[]>('/api/v1/providers', token),
+    request<Model[]>('/api/v1/models', token),
+    request<AiMember[]>('/api/v1/ai-members', token)
+  ]);
+  return { providers, models, aiMembers };
+}
+
+export function createProvider(
+  token: string,
+  input: { name: string; adapter: 'openai_compatible'; base_url: string; credential_ref: string }
+): Promise<Provider> {
+  return request('/api/v1/providers', token, 'POST', input);
+}
+
+export function createModel(
+  token: string,
+  input: {
+    provider_id: string;
+    model_name: string;
+    display_name: string;
+    capabilities?: Record<string, unknown>;
+    limits?: Record<string, unknown>;
+    defaults?: Record<string, unknown>;
+  }
+): Promise<Model> {
+  return request('/api/v1/models', token, 'POST', input);
+}
+
+export function createAiMember(
+  token: string,
+  input: { handle: string; display_name: string; identity_prompt: string; default_model_id: string }
+): Promise<AiMember> {
+  return request('/api/v1/ai-members', token, 'POST', input);
+}
+
+export function addTopicMember(
+  token: string,
+  topicId: string,
+  principalId: string,
+  role: 'read' | 'contribute' | 'write' = 'contribute'
+): Promise<TopicMember> {
+  return request(`/api/v1/topics/${topicId}/members/${principalId}`, token, 'PUT', { role });
+}
+
+export function createTeam(
+  token: string,
+  topicId: string,
+  input: { handle: string; display_name: string }
+): Promise<Team> {
+  return request(`/api/v1/topics/${topicId}/teams`, token, 'POST', input);
+}
+
+export function addTeamMember(token: string, teamId: string, principalId: string): Promise<Team> {
+  return request(`/api/v1/teams/${teamId}/members/${principalId}`, token, 'PUT');
 }
 
 export async function loadTopicWorkspace(

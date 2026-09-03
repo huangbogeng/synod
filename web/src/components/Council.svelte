@@ -7,9 +7,51 @@
   export let aiMembers: AiMember[];
   export let models: Model[];
   export let runs: Run[];
+  export let onAddMember: (memberId: string) => Promise<void>;
+  export let onCreateTeam: (input: { handle: string; displayName: string; memberId: string }) => Promise<void>;
+
+  let selectedMember = '';
+  let teamMember = '';
+  let teamHandle = '';
+  let teamName = '';
+  let managing = false;
+  let message = '';
 
   $: aiById = new Map(aiMembers.map((member) => [member.id, member]));
   $: modelById = new Map(models.map((model) => [model.id, model]));
+  $: available = aiMembers.filter((member) => !members.some((seat) => seat.id === member.id));
+  $: if (!selectedMember && available.length) selectedMember = available[0].id;
+  $: if (!teamMember && aiMembers.length) teamMember = aiMembers[0].id;
+
+  async function addSeat() {
+    if (!selectedMember) return;
+    managing = true;
+    message = '';
+    try {
+      await onAddMember(selectedMember);
+      selectedMember = '';
+      message = 'Seat added.';
+    } catch (cause) {
+      message = cause instanceof Error ? cause.message : 'Seat could not be added.';
+    } finally {
+      managing = false;
+    }
+  }
+
+  async function addTeam() {
+    managing = true;
+    message = '';
+    try {
+      await onCreateTeam({ handle: teamHandle, displayName: teamName, memberId: teamMember });
+      teamHandle = '';
+      teamName = '';
+      message = 'Team added.';
+    } catch (cause) {
+      message = cause instanceof Error ? cause.message : 'Team could not be added.';
+    } finally {
+      managing = false;
+    }
+  }
 
   function subtitle(member: TopicMember): string {
     const ai = aiById.get(member.id);
@@ -55,6 +97,25 @@
       {/each}
     </div>
   {/if}
+
+  <details class="council-manage">
+    <summary>Manage council</summary>
+    {#if aiMembers.length}
+      <form on:submit|preventDefault={addSeat}>
+        <label>Add an AI seat<select bind:value={selectedMember} disabled={!available.length}>{#each available as member}<option value={member.id}>@{member.handle}</option>{/each}{#if !available.length}<option>All members seated</option>{/if}</select></label>
+        <button class="button" type="submit" disabled={!available.length || managing}>Add</button>
+      </form>
+      <form class="team-form" on:submit|preventDefault={addTeam}>
+        <label>Team handle<input bind:value={teamHandle} required placeholder="reviewers" /></label>
+        <label>Team name<input bind:value={teamName} required placeholder="Review team" /></label>
+        <label>First seat<select bind:value={teamMember}>{#each aiMembers as member}<option value={member.id}>@{member.handle}</option>{/each}</select></label>
+        <button class="button" type="submit" disabled={managing}>Create team</button>
+      </form>
+      {#if message}<p>{message}</p>{/if}
+    {:else}
+      <p>Create an AI Member in Settings first.</p>
+    {/if}
+  </details>
 
   <div class="council-footer">
     <span class="pulse-ring"><i></i></span>

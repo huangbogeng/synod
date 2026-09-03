@@ -109,9 +109,12 @@ configured DeepSeek or MiniMax model, settle a normalized model response as an
 AI Comment, and record failure without publishing fake output. The first native
 HTTP slice deliberately supports only these two vendors through their official
 Chat Completions endpoints. Extended context/tool assembly and Proposal use cases
-are not implemented yet. A first Svelte Web UI is embedded into the Rust binary:
-it provides local token unlock, a Topic overview, a GitHub-shaped Issue board,
-and a Topic Council showing Human and AI seats.
+are not implemented yet. The Svelte Web UI is embedded into the Rust binary and
+now covers the first usable council loop: local token unlock, Provider/Model/AI
+Member setup, Topic creation, Topic seats and one-member Team setup, Issue
+creation, Issue timelines, Comments, mentions, Run state refresh, and final AI
+Comments. Provider secrets remain process environment variables; the browser
+stores only their `env://` references.
 
 ## Run the foundation
 
@@ -119,6 +122,14 @@ Rust 1.94 or newer is required.
 
 ```bash
 cargo run -- bootstrap --handle admin --display-name "Administrator"
+cargo run -- dev
+```
+
+To execute model Runs, export the environment variable named while creating the
+Provider before starting `dev`, for example:
+
+```bash
+export DEEPSEEK_API_KEY="..."
 cargo run -- dev
 ```
 
