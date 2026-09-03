@@ -10,11 +10,14 @@ opening an Issue with an `@mention`, and reading its durable response in the
 Issue timeline. Settings offers local API-key storage for the simplest setup or
 an environment-variable reference for externally managed credentials. Secret
 values are accepted write-only and never returned by the API.
+Settings uses separate Provider and AI Member tabs. Each tab leads with its
+saved resource cards; creation forms open only from the dashed add card or page
+action. The Member roster derives a stable sigil and color from each handle,
+and its creation dialog combines Prompt templates with a live identity preview.
 Selecting a Provider automatically asks its model-list endpoint for the models
-available to that credential. The AI Member form presents those results as a
-picker with an explicit refresh action. Saving the Member creates or reuses the
-internal Model record; Model remains a reproducibility boundary, not a third
-settings card.
+available to that credential. Saving the Member creates or reuses the internal
+Model record; Model remains a reproducibility boundary, not a third settings
+tab.
 
 For frontend development, run the Rust API and Vite separately:
 

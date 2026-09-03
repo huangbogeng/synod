@@ -322,9 +322,13 @@ impl Database {
         self.require_server_admin(actor_id).await?;
         let rows = sqlx::query(
             "SELECT principal.id, principal.kind, principal.handle, principal.display_name,
+                    prompt.prompt AS identity_prompt,
                     profile.identity_prompt_version, profile.default_model_id
              FROM principals AS principal
              JOIN ai_profiles AS profile ON profile.principal_id = principal.id
+             JOIN ai_prompt_versions AS prompt
+               ON prompt.ai_principal_id = profile.principal_id
+              AND prompt.version = profile.identity_prompt_version
              WHERE principal.active = 1 ORDER BY principal.handle",
         )
         .fetch_all(&self.pool)
@@ -597,6 +601,7 @@ async fn insert_ai_member_in_transaction(
             handle: handle.to_owned(),
             display_name: display_name.to_owned(),
         },
+        identity_prompt: identity_prompt.to_owned(),
         identity_prompt_version: 1,
         default_model_id,
     })
@@ -702,6 +707,7 @@ fn model_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Model, StoreError> {
 fn ai_member_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<AiMember, StoreError> {
     Ok(AiMember {
         principal: principal_from_row(row)?,
+        identity_prompt: row.try_get("identity_prompt")?,
         identity_prompt_version: row.try_get("identity_prompt_version")?,
         default_model_id: parse_id(row, "default_model_id", "model id")?,
     })

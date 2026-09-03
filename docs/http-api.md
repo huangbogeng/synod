@@ -177,6 +177,8 @@ PUT    /teams/{team_id}/members/{principal_id}
 
 Provider, Model, and AI Member records are server administrative resources. API
 responses expose credential presence but never references or secret values.
+AI Member responses include the current identity Prompt and its immutable
+version number so the administrative roster can present the Member's mandate.
 
 The Web UI presents only two concepts: Provider route and AI Member. Creating
 an AI Member sends `provider_id` plus the vendor's exact `model_name`; the server

@@ -115,11 +115,13 @@ Member setup, Topic creation, Topic seats and one-member Team setup, Issue
 creation, Issue timelines, Comments, mentions, Run state refresh, and final AI
 Comments. The preset-first Provider form accepts either a local API key or an
 `env://` reference. Local keys are stored in the permission-restricted SQLite
-database and are never returned by the HTTP API. Selecting a saved Provider
-automatically loads the models available to its credential into the AI Member
-picker. The UI creates or reuses the internal Model
-record when that Member is saved, so users manage only Provider routes and
-Members.
+database and are never returned by the HTTP API. Settings is split into
+Provider and AI Member tabs: existing resources lead each page, while dashed
+cards open focused creation dialogs. The Member roster gives every handle a
+stable visual identity and previews Prompt templates live. Selecting a saved
+Provider automatically loads the models available to its credential. The UI
+creates or reuses the internal Model record when that Member is saved, so users
+manage only Provider routes and Members.
 
 ## Run the foundation
 

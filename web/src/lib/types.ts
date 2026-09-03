@@ -42,6 +42,7 @@ export interface Team {
 }
 
 export interface AiMember extends Principal {
+  identity_prompt: string;
   identity_prompt_version: number;
   default_model_id: string;
 }

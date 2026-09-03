@@ -69,6 +69,7 @@ pub struct ModelInput {
 pub struct AiMember {
     #[serde(flatten)]
     pub principal: Principal,
+    pub identity_prompt: String,
     pub identity_prompt_version: i64,
     pub default_model_id: ModelId,
 }

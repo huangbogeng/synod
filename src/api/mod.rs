@@ -592,6 +592,10 @@ mod tests {
         let ai_member = json_body(ai_member).await;
         let ai_id = ai_member["data"]["id"].as_str().unwrap();
         assert_eq!(ai_member["data"]["kind"], "ai");
+        assert_eq!(
+            ai_member["data"]["identity_prompt"],
+            "Review system boundaries."
+        );
 
         let reviewer = send(
             &app,
@@ -608,6 +612,16 @@ mod tests {
         )
         .await;
         assert_eq!(reviewer.status(), StatusCode::CREATED);
+        let members = send(&app, "GET", "/api/v1/ai-members", &bearer, None).await;
+        assert_eq!(members.status(), StatusCode::OK);
+        let members = json_body(members).await;
+        let architect = members["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|member| member["handle"] == "architect")
+            .unwrap();
+        assert_eq!(architect["identity_prompt"], "Review system boundaries.");
         let configured_model_count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM models WHERE provider_id = ? AND model_name = ?",
         )
